@@ -143,11 +143,22 @@ app.get('/api/user-summary', async (req, res) => {
         }
 
         if (search) {
-            const searchPattern = `%${search}%`;
-            query += ' AND (email LIKE ? OR ip_address LIKE ? OR queue_name LIKE ?)';
-            countQuery += ' AND (email LIKE ? OR ip_address LIKE ? OR queue_name LIKE ?)';
-            queryParams.push(searchPattern, searchPattern, searchPattern);
-            countParams.push(searchPattern, searchPattern, searchPattern);
+            // Check if search is for email domain (*.domain.com or @domain.com)
+            if (search.startsWith('*.') || search.startsWith('@')) {
+                const domain = search.startsWith('*.') ? search.substring(2) : search.substring(1);
+                const domainPattern = `%@${domain}`;
+                query += ' AND email LIKE ?';
+                countQuery += ' AND email LIKE ?';
+                queryParams.push(domainPattern);
+                countParams.push(domainPattern);
+            } else {
+                // Search only in email field
+                const searchPattern = `%${search}%`;
+                query += ' AND email LIKE ?';
+                countQuery += ' AND email LIKE ?';
+                queryParams.push(searchPattern);
+                countParams.push(searchPattern);
+            }
         }
 
         if (startDate) {
@@ -248,11 +259,20 @@ app.get('/api/logs', async (req, res) => {
 
     // Search filter - least selective, add last
     if (search) {
-        // Use more efficient search - prioritize exact matches first
-        whereClause += ' AND (email LIKE ? OR ip_address LIKE ? OR queue_name LIKE ?)';
-        const searchPattern = `%${search}%`;
-        queryParams.push(searchPattern, searchPattern, searchPattern);
-        countParams.push(searchPattern, searchPattern, searchPattern);
+        // Check if search is for email domain (*.domain.com or @domain.com)
+        if (search.startsWith('*.') || search.startsWith('@')) {
+            const domain = search.startsWith('*.') ? search.substring(2) : search.substring(1);
+            const domainPattern = `%@${domain}`;
+            whereClause += ' AND email LIKE ?';
+            queryParams.push(domainPattern);
+            countParams.push(domainPattern);
+        } else {
+            // Search only in email field
+            whereClause += ' AND email LIKE ?';
+            const searchPattern = `%${search}%`;
+            queryParams.push(searchPattern);
+            countParams.push(searchPattern);
+        }
     }
 
     // Optimized main query - only select needed columns
