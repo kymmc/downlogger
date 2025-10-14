@@ -92,28 +92,113 @@ Connects to existing `download_tracking.user_info` table with:
 
 This application is designed for **Kubernetes deployment** with Docker containerization for scalable, production-ready hosting.
 
-### Kubernetes (Recommended)
-Containerized deployment with Docker and Kubernetes manifests for scalable cluster deployment.
+### Registry Information
 
-**Quick Kubernetes Deploy:**
+- **Registry**: `docker-scicomp.artifactory.ihme.washington.edu`
+- **Image**: `docker-scicomp.artifactory.ihme.washington.edu/downlogger:latest`
+- **Namespace**: `downlogger-prod`
+
+### Prerequisites
+
+- Docker installed and running
+- kubectl configured for your cluster
+- Access to IHME Artifactory registry
+
+### First Time Setup
+
+1. **Login to Artifactory:**
 ```bash
-# Build and deploy
-.\deploy.ps1 -Registry "your-registry.com"
-
-# Or manually
-npm run docker:build
-npm run k8s:deploy
+docker login docker-scicomp.artifactory.ihme.washington.edu
 ```
 
-**Key Features:**
+2. **Create secrets file:**
+```bash
+cd k8s/
+cp secret.yaml.example secret.yaml
+# Edit secret.yaml with your database credentials
+```
+
+### Quick Deploy
+
+**One-Command Deployment:**
+```bash
+# Build and deploy everything with @build-and-deploy.sh
+chmod +x build-and-deploy.sh
+./build-and-deploy.sh
+```
+
+The `@build-and-deploy.sh` script handles everything automatically:
+1. **Setup** multi-platform Docker builder (AMD64 + ARM64)
+2. **Login** to Artifactory registry
+3. **Build & Push** Docker image for both platforms
+4. **Deploy** to Kubernetes cluster
+5. **Wait** for rollout completion
+6. **Verify** deployment status
+
+**Manual Deployment (if needed):**
+```bash
+# Apply Kubernetes manifests manually
+kubectl apply -f k8s/
+```
+
+### Key Features
+
 - 🐳 **Docker containerization** for consistent deployments
 - ⚖️ **Horizontal auto-scaling** (2-10 replicas)
 - 🔒 **Secure secrets management** for database credentials
 - 🌐 **Ingress routing** with custom domain support
 - 📊 **Health checks** and monitoring
 - 🔄 **Rolling updates** with zero downtime
+- 🏗️ **Multi-platform builds** (AMD64 + ARM64 support)
 
-See `KUBERNETES_DEPLOYMENT.md` for detailed deployment instructions.
+### Monitoring
+
+**Check Deployment Status:**
+```bash
+kubectl get all -n downlogger-prod
+```
+
+**View Logs:**
+```bash
+kubectl logs -f deployment/downlogger -n downlogger-prod
+```
+
+**Check Application:**
+- **URL**: https://downlogger.aks.scicomp.ihme.washington.edu
+- **Health Check**: https://downlogger.aks.scicomp.ihme.washington.edu/api/stats
+
+### Advanced Operations
+
+**Rollback:**
+```bash
+# View rollout history
+kubectl rollout history deployment/downlogger -n downlogger-prod
+
+# Rollback to previous version
+kubectl rollout undo deployment/downlogger -n downlogger-prod
+
+# Rollback to specific revision
+kubectl rollout undo deployment/downlogger --to-revision=2 -n downlogger-prod
+```
+
+**Exec into Pod:**
+```bash
+kubectl exec -it deployment/downlogger -n downlogger-prod -- sh
+```
+
+### Configuration
+
+**Environment Variables (ConfigMap):**
+Edit `k8s/configmap.yaml`:
+- `PORT`: Application port (3000)
+- `DB_HOST`: Database host
+- `DB_PORT`: Database port (3306)
+- `DB_NAME`: Database name
+
+**Secrets:**
+Edit `k8s/secret.yaml`:
+- `DB_USER`: Database username
+- `DB_PASSWORD`: Database password
 
 ### Alternative: Azure App Service
 *Legacy deployment option - Kubernetes recommended for new deployments*
@@ -145,12 +230,14 @@ See `AZURE_DEPLOYMENT.md` if Azure App Service deployment is required.
 npm start                 # Start local server
 npm run dev              # Start with auto-reload
 
-# Docker and Kubernetes
-npm run docker:build     # Build Docker image
-npm run k8s:deploy       # Deploy to Kubernetes
-npm run k8s:delete       # Remove from Kubernetes
-npm run k8s:logs         # View application logs
-npm run k8s:status       # Check deployment status
+# Production deployment (recommended)
+./build-and-deploy.sh    # One-command build and deploy
+
+# Manual Kubernetes operations
+kubectl apply -f k8s/    # Deploy to Kubernetes
+kubectl delete -f k8s/   # Remove from Kubernetes
+kubectl logs -f deployment/downlogger -n downlogger-prod  # View logs
+kubectl get all -n downlogger-prod  # Check status
 ```
 
 ## API Endpoints
@@ -184,7 +271,7 @@ npm run k8s:status       # Check deployment status
 ### Connection Issues
 - Verify VPN/network access to IHME systems
 - Check database credentials in environment variables
-- Ensure App Service VNet integration is configured
+- Ensure proper network configuration for database access
 
 ### Performance Issues
 - Monitor connection pool usage in logs
@@ -192,9 +279,30 @@ npm run k8s:status       # Check deployment status
 - Consider database indexing for large datasets
 
 ### Deployment Issues
-- Verify all environment variables are set in Azure
-- Check App Service logs for detailed error messages
-- Ensure proper VNet configuration for database access
+
+**Image Pull Errors:**
+```bash
+# Check if image exists in registry
+docker pull docker-scicomp.artifactory.ihme.washington.edu/downlogger:latest
+
+# Verify login
+docker info | grep docker-scicomp.artifactory.ihme.washington.edu
+```
+
+**Pod Issues:**
+```bash
+# Describe pod for details
+kubectl describe pod <pod-name> -n downlogger-prod
+
+# Check events
+kubectl get events -n downlogger-prod --sort-by='.lastTimestamp'
+```
+
+**General Kubernetes Issues:**
+- Verify all environment variables are set in ConfigMap and Secrets
+- Check Kubernetes logs for detailed error messages
+- Ensure proper network configuration for database access
+- Verify image platform compatibility (AMD64/ARM64)
 
 ## License
 
