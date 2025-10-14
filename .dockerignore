@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+README.md
+AZURE_DEPLOYMENT.md
+.deployment
+.vscode
+k8s/
+*.md
