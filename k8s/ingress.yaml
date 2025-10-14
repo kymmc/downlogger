@@ -1,27 +1,21 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
 metadata:
   name: downlogger
   namespace: downlogger-prod
-  labels:
-    app: downlogger
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx
+  # Listen on both HTTP and HTTPS entrypoints
+  entryPoints:
+    - web
+    - websecure
+  routes:
+  - match: Host(`downlogger.aks.scicomp.ihme.washington.edu`)
+    kind: Rule
+    priority: 10
+    services:
+    - name: downlogger
+      port: 3000
   tls:
-  - hosts:
-    - downlogger.aks.scicomp.ihme.washington.edu
-    secretName: downlogger-prod-tls
-  rules:
-  - host: downlogger.aks.scicomp.ihme.washington.edu
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: downlogger
-            port:
-              number: 80
+    store:
+      name: default
 

@@ -31,7 +31,7 @@ echo -e "${GREEN}📦 Step 1: Building Docker image...${NC}"
 echo "Image: ${FULL_IMAGE}"
 echo ""
 
-docker build -t ${IMAGE_NAME}:${TAG} .
+docker buildx build --platform linux/amd64, linux/arm64 -t ${IMAGE_NAME}:${TAG} .
 
 # Tag for both latest and specific version
 LATEST_IMAGE="${REGISTRY}/${IMAGE_NAME}:latest"
@@ -94,10 +94,10 @@ echo ""
 # Step 4: Update Kubernetes Deployment
 echo -e "${GREEN}🚀 Step 4: Updating Kubernetes deployment...${NC}"
 
-# Update the deployment with the new image
-kubectl set image deployment/downlogger downlogger=${FULL_IMAGE} -n downlogger-prod
+# Apply all Kubernetes manifests (this ensures IngressRoute, middleware, etc. are updated)
+kubectl apply -f k8s/
 
-echo -e "${GREEN}✅ Deployment updated${NC}"
+echo -e "${GREEN}✅ Kubernetes manifests applied${NC}"
 echo ""
 
 # Step 5: Wait for Rollout

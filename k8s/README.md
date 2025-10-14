@@ -15,11 +15,12 @@ cp secret.yaml.example secret.yaml
 ### 2. Deploy
 
 ```bash
-chmod +x deploy.sh
-./deploy.sh
+# From the project root directory
+chmod +x build-and-deploy.sh
+./build-and-deploy.sh
 ```
 
-That's it! The script will deploy everything in the correct order.
+That's it! The script will build the Docker image, push it to the registry, and deploy everything to Kubernetes in the correct order.
 
 ## Manual Deployment
 
@@ -44,8 +45,8 @@ kubectl get all -n downlogger-prod
 # Check pods
 kubectl get pods -n downlogger-prod
 
-# Check ingress
-kubectl get ingress -n downlogger-prod
+# Check ingressroute
+kubectl get ingressroute -n downlogger-prod
 
 # Check HPA
 kubectl get hpa -n downlogger-prod
@@ -154,8 +155,8 @@ https://downlogger.aks.scicomp.ihme.washington.edu
 - `secret.yaml.example` - Template for database credentials
 - `deployment.yaml` - Main application deployment
 - `service.yaml` - ClusterIP service
-- `ingress.yaml` - External access with TLS
+- `ingress.yaml` - Traefik IngressRoute with HTTPS redirect middleware
 - `hpa.yaml` - Horizontal Pod Autoscaler
-- `deploy.sh` - Deployment script
+- `../build-and-deploy.sh` - Main build and deployment script
 - `README.md` - This file
 
