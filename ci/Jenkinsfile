@@ -1,0 +1,86 @@
+pipeline {
+    agent { label 'docker' }
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '12'))
+        timeout(time: 30, unit: 'MINUTES')
+    }
+    environment {
+        DOCKER_REGISTRY = 'docker-scicomp.artifactory.ihme.washington.edu'
+        DOCKER_REGISTRY_CREDENTIALS = 'artifactory-docker-scicomp'
+        KUBECONFIG_SECRET_NAME = 'k8s-scicomp-cluster-kubeconf-aks'
+        K8S_NAMESPACE = 'downlogger-prod'
+        IMAGE_NAME = 'downlogger'
+        DEPLOY_VERSION = "${env.BUILD_NUMBER}"
+    }
+    stages {
+        stage('Build and Deploy') {
+            steps {
+                script {
+                    // Make the script executable and run it
+                    sh '''
+                        chmod +x build-and-deploy.sh
+                        ./build-and-deploy.sh ${DEPLOY_VERSION}
+                    '''
+                }
+            }
+        }
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    sh '''
+                        echo "Waiting for deployment to be ready..."
+                        kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
+                        
+                        echo "Checking pod status..."
+                        kubectl get pods -n ${K8S_NAMESPACE}
+                        
+                        echo "Checking service status..."
+                        kubectl get svc -n ${K8S_NAMESPACE}
+                        
+                        echo "Checking ingress status..."
+                        kubectl get ingressroute -n ${K8S_NAMESPACE}
+                    '''
+                }
+            }
+        }
+        stage('Health Check') {
+            steps {
+                script {
+                    sh '''
+                        echo "Performing health check..."
+                        kubectl run health-check --image=curlimages/curl --rm -i --restart=Never -- \
+                            curl -f https://downlogger.aks.scicomp.ihme.washington.edu/api/stats || exit 1
+                        
+                        echo "✅ Health check passed!"
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                echo "Build completed with status: ${currentBuild.result ?: 'SUCCESS'}"
+            }
+        }
+        success {
+            script {
+                echo "🎉 Deployment successful!"
+                echo "Application URL: https://downlogger.aks.scicomp.ihme.washington.edu"
+            }
+        }
+        failure {
+            script {
+                echo "❌ Deployment failed!"
+                sh '''
+                    echo "Checking pod logs for debugging..."
+                    kubectl logs -l app=downlogger -n ${K8S_NAMESPACE} --tail=50 || true
+                    
+                    echo "Checking pod events..."
+                    kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' --field-selector type!=Normal || true
+                '''
+            }
+        }
+    }
+}
