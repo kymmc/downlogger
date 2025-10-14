@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: downlogger
+  namespace: downlogger-prod
+  labels:
+    app: downlogger
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - downlogger.aks.scicomp.ihme.washington.edu
+    secretName: downlogger-prod-tls
+  rules:
+  - host: downlogger.aks.scicomp.ihme.washington.edu
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: downlogger
+            port:
+              number: 80
+
