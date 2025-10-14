@@ -31,7 +31,7 @@ echo -e "${GREEN}📦 Step 1: Building Docker image...${NC}"
 echo "Image: ${FULL_IMAGE}"
 echo ""
 
-docker buildx build --platform linux/amd64, linux/arm64 -t ${IMAGE_NAME}:${TAG} .
+docker buildx build --platform linux/amd64 -t ${IMAGE_NAME}:${TAG} .
 
 # Tag for both latest and specific version
 LATEST_IMAGE="${REGISTRY}/${IMAGE_NAME}:latest"
@@ -46,8 +46,8 @@ echo -e "${GREEN}🔐 Step 2: Logging into Artifactory...${NC}"
 echo "Registry: ${REGISTRY}"
 echo ""
 
-# Check if already logged in
-if ! docker info | grep -q "${REGISTRY}"; then
+# Check if already logged in by examining Docker config
+if ! grep -q "\"${REGISTRY}\"" ~/.docker/config.json 2>/dev/null; then
     echo -e "${YELLOW}Authentication required for ${REGISTRY}${NC}"
     echo ""
     echo -e "${BLUE}For SSO users:${NC}"
