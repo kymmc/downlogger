@@ -26,19 +26,22 @@ echo -e "${BLUE}🚀 Downlogger Build and Deploy Pipeline${NC}"
 echo -e "${BLUE}=======================================${NC}"
 echo ""
 
-# Step 1: Build Docker Image
-echo -e "${GREEN}📦 Step 1: Building Docker image...${NC}"
-echo "Image: ${FULL_IMAGE}"
-echo ""
+# Step 1: Setup Buildx Builder
+echo -e "${GREEN}🔧 Step 1: Setting up multi-platform builder...${NC}"
 
-docker buildx build --platform linux/amd64 -t ${IMAGE_NAME}:${TAG} .
+# Create a new builder if it doesn't exist
+if ! docker buildx ls | grep -q "multiarch"; then
+    echo "Creating multi-platform builder..."
+    docker buildx create --name multiarch --driver docker-container --use
+else
+    echo "Using existing multi-platform builder..."
+    docker buildx use multiarch
+fi
 
-# Tag for both latest and specific version
-LATEST_IMAGE="${REGISTRY}/${IMAGE_NAME}:latest"
-docker tag ${IMAGE_NAME}:${TAG} ${LATEST_IMAGE}
-docker tag ${IMAGE_NAME}:${TAG} ${FULL_IMAGE}
+# Bootstrap the builder
+docker buildx inspect --bootstrap
 
-echo -e "${GREEN}✅ Docker image built successfully${NC}"
+echo -e "${GREEN}✅ Builder setup complete${NC}"
 echo ""
 
 # Step 2: Login to Registry
@@ -76,19 +79,17 @@ else
     echo -e "${GREEN}✅ Already logged in to ${REGISTRY}${NC}"
 fi
 
-# Step 3: Push Image
-echo -e "${GREEN}📤 Step 3: Pushing image to registry...${NC}"
+echo ""
 
-# Always push latest tag
-LATEST_IMAGE="${REGISTRY}/${IMAGE_NAME}:latest"
-echo "Pushing latest tag: ${LATEST_IMAGE}"
-docker push ${LATEST_IMAGE}
+# Step 3: Build and Push Multi-Platform Image
+echo -e "${GREEN}📦 Step 3: Building and pushing multi-platform image...${NC}"
+echo "Image: ${FULL_IMAGE}"
+echo "Platforms: linux/amd64,linux/arm64"
+echo ""
 
-# Also push with specific tag
-echo "Pushing specific tag: ${FULL_IMAGE}"
-docker push ${FULL_IMAGE}
+docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t ${FULL_IMAGE} --push .
 
-echo -e "${GREEN}✅ Image pushed successfully${NC}"
+echo -e "${GREEN}✅ Docker image built and pushed successfully${NC}"
 echo ""
 
 # Step 4: Update Kubernetes Deployment
