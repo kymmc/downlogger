@@ -18,13 +18,6 @@ pipeline {
             steps {
                 node('docker') {
                     checkout scm
-                    sh '''
-                        echo "=== CHECKOUT COMPLETE ==="
-                        echo "Current commit: $(git rev-parse HEAD)"
-                        echo "Current branch: $(git branch --show-current)"
-                        echo "Latest commits:"
-                        git log --oneline -3
-                    '''
                 }
             }
         }
@@ -53,14 +46,12 @@ pipeline {
                 KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
             }
             steps {
-                node('docker') {
-                    script {
-                        // Complete the deployment with kubectl
-                        sh '''
-                            kubectl apply -f k8s/
-                            kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
-                        '''
-                    }
+                script {
+                    // Complete the deployment with kubectl
+                    sh '''
+                        kubectl apply -f k8s/
+                        kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
+                    '''
                 }
             }
         }
@@ -76,47 +67,20 @@ pipeline {
                 KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
             }
             steps {
-                node('docker') {
-                    script {
-                        sh '''
-                            echo "Waiting for deployment to be ready..."
-                            kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
-                            
-                            echo "Checking pod status..."
-                            kubectl get pods -n ${K8S_NAMESPACE}
-                            
-                            echo "Checking service status..."
-                            kubectl get svc -n ${K8S_NAMESPACE}
-                            
-                            echo "Checking ingress status..."
-                            kubectl get ingressroute -n ${K8S_NAMESPACE}
-                        '''
-                    }
-                }
-            }
-        }
-        stage('Health Check') {
-            agent {
-                docker {
-                    image 'alpine/k8s:1.25.2'
-                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
-                    args '--entrypoint=""'
-                }
-            }
-            environment {
-                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
-            }
-            steps {
-                node('docker') {
-                    script {
-                        sh '''
-                            echo "Performing health check..."
-                            kubectl run health-check --image=curlimages/curl --rm -i --restart=Never -- \
-                                curl -f https://downlogger.aks.scicomp.ihme.washington.edu/api/stats || exit 1
-                            
-                            echo "✅ Health check passed!"
-                        '''
-                    }
+                script {
+                    sh '''
+                        echo "Waiting for deployment to be ready..."
+                        kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
+                        
+                        echo "Checking pod status..."
+                        kubectl get pods -n ${K8S_NAMESPACE}
+                        
+                        echo "Checking service status..."
+                        kubectl get svc -n ${K8S_NAMESPACE}
+                        
+                        echo "Checking ingress status..."
+                        kubectl get ingressroute -n ${K8S_NAMESPACE}
+                    '''
                 }
             }
         }
@@ -134,7 +98,17 @@ pipeline {
             }
         }
         failure {
-            node('docker') {
+            agent {
+                docker {
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
+                    args '--entrypoint=""'
+                }
+            }
+            environment {
+                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
+            }
+            steps {
                 script {
                     echo "❌ Deployment failed!"
                     sh '''

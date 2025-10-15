@@ -3,10 +3,6 @@
 # Build and Deploy Pipeline for Downlogger
 set -e
 
-echo "=== SCRIPT STARTED ==="
-echo "Arguments: $@"
-echo "*** THIS IS A TEST - IF YOU SEE THIS, THE SCRIPT IS RUNNING ***"
-
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -27,21 +23,15 @@ TAG="${1:-latest}"
 BUILD_ONLY=false
 
 # Check for --build-only flag
-echo "DEBUG: \$1='$1', \$2='$2'"
 if [[ "$1" == "--build-only" ]]; then
     BUILD_ONLY=true
     TAG="${2:-latest}"
-    echo "DEBUG: Build-only mode detected (flag in position 1)"
 elif [[ "$2" == "--build-only" ]]; then
     BUILD_ONLY=true
     TAG="$1"
-    echo "DEBUG: Build-only mode detected (flag in position 2)"
 fi
 
-echo "DEBUG: BUILD_ONLY='$BUILD_ONLY', TAG='$TAG'"
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${TAG}"
-
-echo "=== FLAG PARSING COMPLETE ==="
 echo -e "${BLUE}🚀 Downlogger Build and Deploy Pipeline${NC}"
 echo -e "${BLUE}=======================================${NC}"
 echo ""
@@ -112,7 +102,6 @@ docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t ${FULL_IMAG
 echo -e "${GREEN}✅ Docker image built and pushed successfully${NC}"
 echo ""
 
-echo "DEBUG: About to check BUILD_ONLY='$BUILD_ONLY'"
 if [[ "$BUILD_ONLY" == "true" ]]; then
     echo -e "${YELLOW}🔨 Build-only mode: Skipping Kubernetes deployment${NC}"
     echo -e "${BLUE}📦 Image built: ${FULL_IMAGE}${NC}"
