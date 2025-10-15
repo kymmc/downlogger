@@ -37,7 +37,8 @@ pipeline {
         stage('Deploy to Kubernetes') {
             agent {
                 docker {
-                    image 'docker.artifactory.ihme.washington.edu/alpine/k8s:1.25.2'
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
                     args '--entrypoint=""'
                     reuseNode true
                 }
@@ -55,7 +56,8 @@ pipeline {
         stage('Verify Deployment') {
             agent {
                 docker {
-                    image 'docker.artifactory.ihme.washington.edu/alpine/k8s:1.25.2'
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
                     args '--entrypoint=""'
                     reuseNode true
                 }
