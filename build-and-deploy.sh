@@ -28,6 +28,7 @@ if [[ "$1" == "--build-only" ]]; then
     TAG="${2:-latest}"
 elif [[ "$2" == "--build-only" ]]; then
     BUILD_ONLY=true
+    TAG="$1"
 fi
 
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${TAG}"
