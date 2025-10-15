@@ -35,52 +35,50 @@ pipeline {
             }
         }
         stage('Deploy to Kubernetes') {
-            agent {
-                docker {
-                    image 'alpine/k8s:1.25.2'
-                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
-                    args '--entrypoint=""'
-                }
-            }
-            environment {
-                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
-            }
             steps {
-                script {
-                    // Complete the deployment with kubectl
-                    sh '''
-                        kubectl apply -f k8s/
-                        kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
-                    '''
+                node('docker') {
+                    script {
+                        // Install kubectl and deploy
+                        sh '''
+                            # Install kubectl
+                            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                            chmod +x kubectl
+                            sudo mv kubectl /usr/local/bin/
+                            
+                            # Set up kubeconfig
+                            echo "${KUBECONFIG}" > /tmp/kubeconfig
+                            export KUBECONFIG=/tmp/kubeconfig
+                            
+                            # Deploy to Kubernetes
+                            kubectl apply -f k8s/
+                            kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
+                        '''
+                    }
                 }
             }
         }
         stage('Verify Deployment') {
-            agent {
-                docker {
-                    image 'alpine/k8s:1.25.2'
-                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
-                    args '--entrypoint=""'
-                }
-            }
-            environment {
-                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
-            }
             steps {
-                script {
-                    sh '''
-                        echo "Waiting for deployment to be ready..."
-                        kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
-                        
-                        echo "Checking pod status..."
-                        kubectl get pods -n ${K8S_NAMESPACE}
-                        
-                        echo "Checking service status..."
-                        kubectl get svc -n ${K8S_NAMESPACE}
-                        
-                        echo "Checking ingress status..."
-                        kubectl get ingressroute -n ${K8S_NAMESPACE}
-                    '''
+                node('docker') {
+                    script {
+                        sh '''
+                            # Set up kubeconfig
+                            echo "${KUBECONFIG}" > /tmp/kubeconfig
+                            export KUBECONFIG=/tmp/kubeconfig
+                            
+                            echo "Waiting for deployment to be ready..."
+                            kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
+                            
+                            echo "Checking pod status..."
+                            kubectl get pods -n ${K8S_NAMESPACE}
+                            
+                            echo "Checking service status..."
+                            kubectl get svc -n ${K8S_NAMESPACE}
+                            
+                            echo "Checking ingress status..."
+                            kubectl get ingressroute -n ${K8S_NAMESPACE}
+                        '''
+                    }
                 }
             }
         }
@@ -98,26 +96,22 @@ pipeline {
             }
         }
         failure {
-            agent {
-                docker {
-                    image 'alpine/k8s:1.25.2'
-                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
-                    args '--entrypoint=""'
-                }
-            }
-            environment {
-                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
-            }
             steps {
-                script {
-                    echo "❌ Deployment failed!"
-                    sh '''
-                        echo "Checking pod logs for debugging..."
-                        kubectl logs -l app=downlogger -n ${K8S_NAMESPACE} --tail=50 || true
-                        
-                        echo "Checking pod events..."
-                        kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' --field-selector type!=Normal || true
-                    '''
+                node('docker') {
+                    script {
+                        echo "❌ Deployment failed!"
+                        sh '''
+                            # Set up kubeconfig
+                            echo "${KUBECONFIG}" > /tmp/kubeconfig
+                            export KUBECONFIG=/tmp/kubeconfig
+                            
+                            echo "Checking pod logs for debugging..."
+                            kubectl logs -l app=downlogger -n ${K8S_NAMESPACE} --tail=50 || true
+                            
+                            echo "Checking pod events..."
+                            kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' --field-selector type!=Normal || true
+                        '''
+                    }
                 }
             }
         }
