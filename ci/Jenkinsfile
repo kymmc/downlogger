@@ -17,7 +17,8 @@ pipeline {
         stage('Build and Deploy') {
             agent {
                 docker {
-                    image 'alpine/k8s:1.28.2'
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
                     args '--entrypoint="" -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -37,7 +38,8 @@ pipeline {
         stage('Verify Deployment') {
             agent {
                 docker {
-                    image 'alpine/k8s:1.28.2'
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
                     args '--entrypoint=""'
                 }
             }
@@ -65,7 +67,8 @@ pipeline {
         stage('Health Check') {
             agent {
                 docker {
-                    image 'alpine/k8s:1.28.2'
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
                     args '--entrypoint=""'
                 }
             }
