@@ -717,18 +717,61 @@ function goToPage(page) {
 function formatTimestamp(timestamp) {
     if (!timestamp) return 'N/A';
     
-    const date = new Date(timestamp);
+    // Debug logging for K8s troubleshooting
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        console.log('K8s timestamp debug:', { 
+            original: timestamp, 
+            type: typeof timestamp,
+            hasZ: timestamp.includes?.('Z'),
+            browserTZ: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
+    }
     
-    // Format in Pacific Time (handles PST/PDT automatically)
-    return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: 'America/Los_Angeles'  // Pacific Time
-    });
+    let date = new Date(timestamp);
+    
+    // If the date string doesn't include timezone info, treat it as UTC
+    if (typeof timestamp === 'string' && !timestamp.includes('Z') && !timestamp.includes('+') && !timestamp.includes('-', 10)) {
+        // Assume UTC if no timezone specified
+        date = new Date(timestamp + 'Z');
+        console.log('Added Z suffix for UTC interpretation');
+    }
+    
+    try {
+        // Format in Pacific Time (handles PST/PDT automatically)
+        const formatted = date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'America/Los_Angeles'  // Pacific Time
+        });
+        
+        // Debug output for K8s
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            console.log('Formatted timestamp:', formatted);
+        }
+        
+        return formatted;
+    } catch (error) {
+        // Fallback if timezone conversion fails
+        console.warn('Timezone conversion failed, using manual offset:', error);
+        
+        // Manual Pacific Time conversion (UTC-8, or UTC-7 during DST)
+        const utcDate = new Date(timestamp + (typeof timestamp === 'string' && !timestamp.includes('Z') ? 'Z' : ''));
+        const pacificOffset = -8; // PST offset (will need DST logic for full accuracy)
+        const pacificDate = new Date(utcDate.getTime() + (pacificOffset * 60 * 60 * 1000));
+        
+        return pacificDate.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    }
 }
 
 function escapeHtml(text) {
