@@ -92,126 +92,33 @@ Connects to existing `download_tracking.user_info` table with:
 
 This application is designed for **Kubernetes deployment** with Docker containerization for scalable, production-ready hosting.
 
-### Registry Information
+### Kubernetes (Recommended)
+Containerized deployment with Docker and Kubernetes manifests for scalable cluster deployment.
 
-- **Registry**: `docker-scicomp.artifactory.ihme.washington.edu`
-- **Namespace**: `downlogger-prod`
-- **Application URL**: https://downlogger.aks.scicomp.ihme.washington.edu
+**Quick Kubernetes Deploy:**
+```bash
+# Build and deploy
+.\deploy.ps1 -Registry "your-registry.com"
 
-### Deployment Methods
+# Or manually
+npm run docker:build
+npm run k8s:deploy
+```
 
-#### Option 1: Jenkins Pipeline (Recommended)
-
-This is the **easiest method** for deployment:
-
-1. Push your code changes to the `main` branch
-2. Go to https://jenkins.scicomp.ihme.washington.edu/job/Downlogger/
-3. Make sure you are logged in
-4. Click **"Build Now"** in the left menu
-
-The Jenkins pipeline will automatically:
-- Build multi-platform Docker image (AMD64 + ARM64)
-- Push to Artifactory registry
-- Deploy to Kubernetes cluster
-- Perform rolling update with zero downtime
-- Verify deployment health
-
-#### Option 2: Local Machine Deployment
-
-If deploying from your local machine, you need:
-
-**Prerequisites:**
-- Docker Desktop installed and running
-- Access to IHME Artifactory registry
-- kubectl configured for the cluster
-
-**Steps:**
-
-1. **Create secrets file:**
-   ```bash
-   cd k8s/
-   cp secret.yaml.example secret.yaml
-   # Edit secret.yaml with your database credentials
-   ```
-
-2. **Login to Docker registry:**
-   ```bash
-   docker login docker-scicomp.artifactory.ihme.washington.edu
-   ```
-
-3. **Run the build and deploy script:**
-   ```bash
-   chmod +x build-and-deploy.sh
-   ./build-and-deploy.sh
-   ```
-
-The script will:
-- Setup multi-platform Docker builder
-- Build and push Docker image for both AMD64 and ARM64
-- Deploy to Kubernetes cluster
-- Wait for rollout completion
-
-### Key Features
-
+**Key Features:**
 - 🐳 **Docker containerization** for consistent deployments
 - ⚖️ **Horizontal auto-scaling** (2-10 replicas)
 - 🔒 **Secure secrets management** for database credentials
 - 🌐 **Ingress routing** with custom domain support
 - 📊 **Health checks** and monitoring
 - 🔄 **Rolling updates** with zero downtime
-- 🏗️ **Multi-platform builds** (AMD64 + ARM64 support)
-- 🚀 **CI/CD pipeline** via Jenkins
 
-### Monitoring
+See `KUBERNETES_DEPLOYMENT.md` for detailed deployment instructions.
 
-**Check Deployment Status:**
-```bash
-kubectl get all -n downlogger-prod
-```
+### Alternative: Azure App Service
+*Legacy deployment option - Kubernetes recommended for new deployments*
 
-**View Logs:**
-```bash
-kubectl logs -f deployment/downlogger -n downlogger-prod
-```
-
-**Check Application:**
-- **URL**: https://downlogger.aks.scicomp.ihme.washington.edu
-- **Health Check**: https://downlogger.aks.scicomp.ihme.washington.edu/api/stats
-
-### Advanced Operations
-
-**Rollback:**
-```bash
-# View rollout history
-kubectl rollout history deployment/downlogger -n downlogger-prod
-
-# Rollback to previous version
-kubectl rollout undo deployment/downlogger -n downlogger-prod
-
-# Rollback to specific revision
-kubectl rollout undo deployment/downlogger --to-revision=2 -n downlogger-prod
-```
-
-**Exec into Pod:**
-```bash
-kubectl exec -it deployment/downlogger -n downlogger-prod -- sh
-```
-
-### Configuration
-
-**Environment Variables (ConfigMap):**
-Edit `k8s/configmap.yaml`:
-- `PORT`: Application port (3000)
-- `DB_HOST`: Database host
-- `DB_PORT`: Database port (3306)
-- `DB_NAME`: Database name
-
-**Secrets:**
-Edit `k8s/secret.yaml`:
-- `DB_USER`: Database username
-- `DB_PASSWORD`: Database password
-
-> **Note**: Azure App Service deployment is a legacy option. See `AZURE_DEPLOYMENT.md` if needed, but Kubernetes is recommended for all new deployments.
+See `AZURE_DEPLOYMENT.md` if Azure App Service deployment is required.
 
 ## Usage
 
@@ -230,6 +137,21 @@ Edit `k8s/secret.yaml`:
 - **Visual Feedback**: Filter indicators show active searches
 - **Role-Based Stats**: Dashboard cards break down usage by user roles
 - **Cross-View Navigation**: Seamless workflow between summary and details
+
+## Build and Deploy Commands
+
+```bash
+# Local development
+npm start                 # Start local server
+npm run dev              # Start with auto-reload
+
+# Docker and Kubernetes
+npm run docker:build     # Build Docker image
+npm run k8s:deploy       # Deploy to Kubernetes
+npm run k8s:delete       # Remove from Kubernetes
+npm run k8s:logs         # View application logs
+npm run k8s:status       # Check deployment status
+```
 
 ## API Endpoints
 
@@ -262,7 +184,7 @@ Edit `k8s/secret.yaml`:
 ### Connection Issues
 - Verify VPN/network access to IHME systems
 - Check database credentials in environment variables
-- Ensure proper network configuration for database access
+- Ensure App Service VNet integration is configured
 
 ### Performance Issues
 - Monitor connection pool usage in logs
@@ -270,30 +192,9 @@ Edit `k8s/secret.yaml`:
 - Consider database indexing for large datasets
 
 ### Deployment Issues
-
-**Image Pull Errors:**
-```bash
-# Check if image exists in registry
-docker pull docker-scicomp.artifactory.ihme.washington.edu/downlogger:latest
-
-# Verify login
-docker info | grep docker-scicomp.artifactory.ihme.washington.edu
-```
-
-**Pod Issues:**
-```bash
-# Describe pod for details
-kubectl describe pod <pod-name> -n downlogger-prod
-
-# Check events
-kubectl get events -n downlogger-prod --sort-by='.lastTimestamp'
-```
-
-**General Kubernetes Issues:**
-- Verify all environment variables are set in ConfigMap and Secrets
-- Check Kubernetes logs for detailed error messages
-- Ensure proper network configuration for database access
-- Verify image platform compatibility (AMD64/ARM64)
+- Verify all environment variables are set in Azure
+- Check App Service logs for detailed error messages
+- Ensure proper VNet configuration for database access
 
 ## License
 

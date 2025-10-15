@@ -147,8 +147,8 @@ app.get('/api/user-summary', async (req, res) => {
             if (search.startsWith('*.') || search.startsWith('@')) {
                 const domain = search.startsWith('*.') ? search.substring(2) : search.substring(1);
                 const domainPattern = `%@${domain}`;
-                query += ' AND email LIKE ?';
-                countQuery += ' AND email LIKE ?';
+                query += ' AND LOWER(email) LIKE LOWER(?)';
+                countQuery += ' AND LOWER(email) LIKE LOWER(?)';
                 queryParams.push(domainPattern);
                 countParams.push(domainPattern);
             } else {
@@ -263,7 +263,7 @@ app.get('/api/logs', async (req, res) => {
         if (search.startsWith('*.') || search.startsWith('@')) {
             const domain = search.startsWith('*.') ? search.substring(2) : search.substring(1);
             const domainPattern = `%@${domain}`;
-            whereClause += ' AND email LIKE ?';
+            whereClause += ' AND LOWER(email) LIKE LOWER(?)';
             queryParams.push(domainPattern);
             countParams.push(domainPattern);
         } else {
