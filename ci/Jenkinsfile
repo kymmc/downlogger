@@ -16,12 +16,14 @@ pipeline {
     stages {
         stage('Build Docker Image') {
             steps {
-                script {
-                    // Build Docker image on Jenkins agent (has Docker)
-                    sh '''
-                        chmod +x build-and-deploy.sh
-                        ./build-and-deploy.sh ${DEPLOY_VERSION} --build-only
-                    '''
+                node {
+                    script {
+                        // Build Docker image on Jenkins agent (has Docker)
+                        sh '''
+                            chmod +x build-and-deploy.sh
+                            ./build-and-deploy.sh ${DEPLOY_VERSION} --build-only
+                        '''
+                    }
                 }
             }
         }
@@ -37,12 +39,14 @@ pipeline {
                 KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
             }
             steps {
-                script {
-                    // Complete the deployment with kubectl
-                    sh '''
-                        kubectl apply -f k8s/
-                        kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
-                    '''
+                node {
+                    script {
+                        // Complete the deployment with kubectl
+                        sh '''
+                            kubectl apply -f k8s/
+                            kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
+                        '''
+                    }
                 }
             }
         }
