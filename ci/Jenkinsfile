@@ -16,7 +16,7 @@ pipeline {
     stages {
         stage('Build Docker Image') {
             steps {
-                node {
+                node('docker') {
                     script {
                         // Build Docker image on Jenkins agent (has Docker)
                         sh '''
@@ -39,7 +39,7 @@ pipeline {
                 KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
             }
             steps {
-                node {
+                node('docker') {
                     script {
                         // Complete the deployment with kubectl
                         sh '''
@@ -62,20 +62,22 @@ pipeline {
                 KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
             }
             steps {
-                script {
-                    sh '''
-                        echo "Waiting for deployment to be ready..."
-                        kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
-                        
-                        echo "Checking pod status..."
-                        kubectl get pods -n ${K8S_NAMESPACE}
-                        
-                        echo "Checking service status..."
-                        kubectl get svc -n ${K8S_NAMESPACE}
-                        
-                        echo "Checking ingress status..."
-                        kubectl get ingressroute -n ${K8S_NAMESPACE}
-                    '''
+                node('docker') {
+                    script {
+                        sh '''
+                            echo "Waiting for deployment to be ready..."
+                            kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
+                            
+                            echo "Checking pod status..."
+                            kubectl get pods -n ${K8S_NAMESPACE}
+                            
+                            echo "Checking service status..."
+                            kubectl get svc -n ${K8S_NAMESPACE}
+                            
+                            echo "Checking ingress status..."
+                            kubectl get ingressroute -n ${K8S_NAMESPACE}
+                        '''
+                    }
                 }
             }
         }
@@ -91,14 +93,16 @@ pipeline {
                 KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
             }
             steps {
-                script {
-                    sh '''
-                        echo "Performing health check..."
-                        kubectl run health-check --image=curlimages/curl --rm -i --restart=Never -- \
-                            curl -f https://downlogger.aks.scicomp.ihme.washington.edu/api/stats || exit 1
-                        
-                        echo "✅ Health check passed!"
-                    '''
+                node('docker') {
+                    script {
+                        sh '''
+                            echo "Performing health check..."
+                            kubectl run health-check --image=curlimages/curl --rm -i --restart=Never -- \
+                                curl -f https://downlogger.aks.scicomp.ihme.washington.edu/api/stats || exit 1
+                            
+                            echo "✅ Health check passed!"
+                        '''
+                    }
                 }
             }
         }
@@ -116,15 +120,17 @@ pipeline {
             }
         }
         failure {
-            script {
-                echo "❌ Deployment failed!"
-                sh '''
-                    echo "Checking pod logs for debugging..."
-                    kubectl logs -l app=downlogger -n ${K8S_NAMESPACE} --tail=50 || true
-                    
-                    echo "Checking pod events..."
-                    kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' --field-selector type!=Normal || true
-                '''
+            node('docker') {
+                script {
+                    echo "❌ Deployment failed!"
+                    sh '''
+                        echo "Checking pod logs for debugging..."
+                        kubectl logs -l app=downlogger -n ${K8S_NAMESPACE} --tail=50 || true
+                        
+                        echo "Checking pod events..."
+                        kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' --field-selector type!=Normal || true
+                    '''
+                }
             }
         }
     }
