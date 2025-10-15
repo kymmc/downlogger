@@ -715,14 +715,19 @@ function goToPage(page) {
 
 // Utility functions
 function formatTimestamp(timestamp) {
+    if (!timestamp) return 'N/A';
+    
     const date = new Date(timestamp);
+    
+    // Format in Pacific Time (handles PST/PDT automatically)
     return date.toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false
+        hour12: false,
+        timeZone: 'America/Los_Angeles'  // Pacific Time
     });
 }
 
@@ -879,10 +884,18 @@ function searchByDomain(email) {
     
     // Extract domain from email
     const domain = extractDomain(email);
-    if (!domain) return;
+    if (!domain) {
+        console.error('Could not extract domain from email:', email);
+        return;
+    }
+    
+    console.log('Searching by domain:', domain, 'from email:', email);
     
     // Set the search filter to domain pattern
-    document.getElementById('searchInput').value = `*.${domain}`;
+    const searchPattern = `*.${domain.toLowerCase().trim()}`;
+    console.log('Setting search pattern:', searchPattern);
+    
+    document.getElementById('searchInput').value = searchPattern;
     
     // Apply the filters to show all users from this domain
     applyFilters();
