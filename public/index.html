@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GBD Results Download Logger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-chart-line"></i> GBD Results Download Logger</h1>
+            <div class="stats-cards" id="statsCards">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+        </header>
+
+        <div class="view-tabs">
+            <button id="summaryViewTab" class="view-tab active" data-view="summary">
+                <i class="fas fa-user-friends"></i> User Summary
+            </button>
+            <button id="detailedViewTab" class="view-tab" data-view="detailed">
+                <i class="fas fa-list"></i> Detailed Logs
+            </button>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="levelFilter">
+                    <i class="fas fa-filter"></i> Role:
+                </label>
+                <select id="levelFilter">
+                    <option value="all">All Roles</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="searchInput">
+                    <i class="fas fa-search"></i> Search:
+                </label>
+                <div class="search-input-container">
+                    <input type="text" id="searchInput" placeholder="Search emails">
+                    <div class="search-info-tooltip">
+                        <i class="fas fa-info-circle search-info-icon"></i>
+                        <div class="tooltip-content">
+                            <strong>Email Search Tips:</strong><br>
+                            • Username search: admin or user123<br>
+                            • Domain search: *.domain.com<br>
+                            • Alternative: @domain.com
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="startDate">
+                    <i class="fas fa-calendar"></i> From:
+                </label>
+                <input type="date" id="startDate">
+            </div>
+
+            <div class="control-group">
+                <label for="endDate">
+                    <i class="fas fa-calendar"></i> To:
+                </label>
+                <input type="date" id="endDate">
+            </div>
+
+            <div class="control-group">
+                <button id="refreshBtn" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button id="clearBtn" class="btn btn-secondary">
+                    <i class="fas fa-times-circle"></i> Clear Filters
+                </button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h2 id="tableTitle"><i class="fas fa-user-friends"></i> User Summary</h2>
+                <div class="pagination-info" id="paginationInfo">
+                    <!-- Pagination info will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
+            </div>
+
+            <table class="logs-table" id="logsTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-column="email">
+                            Email <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="role">
+                            Role <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="total_downloads">
+                            Total Downloads <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="total_rows">
+                            Total Rows <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="first_download">
+                            First Download <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="last_download">
+                            Most Recent <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody">
+                    <!-- Logs will be populated by JavaScript -->
+                </tbody>
+            </table>
+
+            <div class="pagination" id="pagination">
+                <!-- Pagination controls will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="errorText"></span>
+            <button onclick="hideError()"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

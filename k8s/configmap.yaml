@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: downlogger-config
+  namespace: downlogger-prod
+data:
+  PORT: "3000"
+  DB_HOST: "apputils-unmanaged-db-p01.db.ihme.washington.edu"
+  DB_PORT: "3306"
+  DB_NAME: "download_tracking"
+

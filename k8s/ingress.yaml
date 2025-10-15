@@ -1,0 +1,21 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: downlogger
+  namespace: downlogger-prod
+spec:
+  # Listen on both HTTP and HTTPS entrypoints
+  entryPoints:
+    - web
+    - websecure
+  routes:
+  - match: Host(`downlogger.aks.scicomp.ihme.washington.edu`)
+    kind: Rule
+    priority: 10
+    services:
+    - name: downlogger
+      port: 3000
+  tls:
+    store:
+      name: default
+

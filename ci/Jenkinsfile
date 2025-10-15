@@ -1,0 +1,111 @@
+pipeline {
+    agent none
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '12'))
+        timeout(time: 30, unit: 'MINUTES')
+    }
+    environment {
+        DOCKER_REGISTRY = 'docker-scicomp.artifactory.ihme.washington.edu'
+        DOCKER_REGISTRY_CREDENTIALS = 'artifactory-docker-scicomp'
+        KUBECONFIG_SECRET_NAME = 'k8s-scicomp-cluster-kubeconf-aks'
+        K8S_NAMESPACE = 'downlogger-prod'
+        IMAGE_NAME = 'downlogger'
+        DEPLOY_VERSION = "${env.BUILD_NUMBER}"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                node('docker') {
+                    checkout scm
+                }
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                node('docker') {
+                    script {
+                        // Build Docker image on Jenkins agent (has Docker)
+                        sh '''
+                            chmod +x build-and-deploy.sh
+                            ./build-and-deploy.sh ${DEPLOY_VERSION} --build-only
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            agent {
+                docker {
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
+                    args '--entrypoint=""'
+                    reuseNode true
+                }
+            }
+            environment {
+                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
+            }
+            steps {
+                sh '''
+                    # Apply all k8s configs (namespace, configmap, secret, service, ingress, hpa)
+                    kubectl apply -f k8s/
+                    
+                    # Update deployment with the new image tag
+                    kubectl set image deployment/downlogger \
+                        downlogger=${DOCKER_REGISTRY}/${IMAGE_NAME}:${DEPLOY_VERSION} \
+                        -n ${K8S_NAMESPACE}
+                    
+                    # Wait for rollout to complete
+                    kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
+                '''
+            }
+        }
+        stage('Verify Deployment') {
+            agent {
+                docker {
+                    image 'alpine/k8s:1.25.2'
+                    registryUrl 'https://docker.artifactory.ihme.washington.edu'
+                    args '--entrypoint=""'
+                    reuseNode true
+                }
+            }
+            environment {
+                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
+            }
+            steps {
+                sh '''
+                    echo "Waiting for deployment to be ready..."
+                    kubectl wait --for=condition=available --timeout=300s deployment/downlogger -n ${K8S_NAMESPACE}
+                    
+                    echo "Checking pod status..."
+                    kubectl get pods -n ${K8S_NAMESPACE}
+                    
+                    echo "Checking service status..."
+                    kubectl get svc -n ${K8S_NAMESPACE}
+                    
+                    echo "Checking ingress status..."
+                    kubectl get ingressroute -n ${K8S_NAMESPACE}
+                '''
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                echo "Build completed with status: ${currentBuild.result ?: 'SUCCESS'}"
+            }
+        }
+        success {
+            script {
+                echo "🎉 Deployment successful!"
+                echo "Application URL: https://downlogger.aks.scicomp.ihme.washington.edu"
+            }
+        }
+        failure {
+            script {
+                echo "❌ Deployment failed!"
+            }
+        }
+    }
+}
