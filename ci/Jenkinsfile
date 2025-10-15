@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'docker' }
+    agent none
     options {
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '12'))
@@ -15,6 +15,15 @@ pipeline {
     }
     stages {
         stage('Build and Deploy') {
+            agent {
+                docker {
+                    image 'alpine/k8s:1.28.2'
+                    args '--entrypoint="" -v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
+            environment {
+                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
+            }
             steps {
                 script {
                     // Make the script executable and run it
@@ -26,6 +35,15 @@ pipeline {
             }
         }
         stage('Verify Deployment') {
+            agent {
+                docker {
+                    image 'alpine/k8s:1.28.2'
+                    args '--entrypoint=""'
+                }
+            }
+            environment {
+                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
+            }
             steps {
                 script {
                     sh '''
@@ -45,6 +63,15 @@ pipeline {
             }
         }
         stage('Health Check') {
+            agent {
+                docker {
+                    image 'alpine/k8s:1.28.2'
+                    args '--entrypoint=""'
+                }
+            }
+            environment {
+                KUBECONFIG = credentials("${KUBECONFIG_SECRET_NAME}")
+            }
             steps {
                 script {
                     sh '''
