@@ -717,24 +717,13 @@ function goToPage(page) {
 function formatTimestamp(timestamp) {
     if (!timestamp) return 'N/A';
     
-    // DEBUG: Always log what we receive to understand the difference
-    console.log('formatTimestamp DEBUG:', {
-        original: timestamp,
-        type: typeof timestamp,
-        hasZ: timestamp.includes?.('Z'),
-        hostname: window.location.hostname
-    });
+    const date = new Date(timestamp);
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
-    // Database stores timestamps in Pacific Time
-    // Local MySQL returns without 'Z', K8s MySQL adds 'Z' suffix incorrectly
-    
-    if (typeof timestamp === 'string' && timestamp.includes('Z')) {
-        // K8s environment: MySQL2 incorrectly adds 'Z' to Pacific timestamps
-        // Strip the 'Z' and treat as Pacific Time (no conversion)
-        const cleanTimestamp = timestamp.replace(/Z$/, '');
-        const date = new Date(cleanTimestamp);
-        
-        const result = date.toLocaleString('en-US', {
+    if (isLocal) {
+        // Local environment: subtract 7 hours to fix the timezone difference
+        const adjustedDate = new Date(date.getTime() - (7 * 60 * 60 * 1000));
+        return adjustedDate.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -742,24 +731,17 @@ function formatTimestamp(timestamp) {
             minute: '2-digit',
             hour12: false
         });
-        
-        console.log('K8s path result:', result);
-        return result;
     } else {
-        // Local environment: timestamps have no timezone info, already Pacific
-        const date = new Date(timestamp);
-        
-        const result = date.toLocaleString('en-US', {
+        // K8s environment: use timestamp as-is
+        return date.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false
+            hour12: false,
+            timeZone: 'America/Los_Angeles'  // Convert to Pacific Time
         });
-        
-        console.log('Local path result:', result);
-        return result;
     }
 }
 
