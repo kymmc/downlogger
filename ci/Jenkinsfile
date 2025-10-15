@@ -14,12 +14,23 @@ pipeline {
         DEPLOY_VERSION = "${env.BUILD_NUMBER}"
     }
     stages {
-        stage('Build and Deploy') {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image on Jenkins agent (has Docker)
+                    sh '''
+                        chmod +x build-and-deploy.sh
+                        ./build-and-deploy.sh ${DEPLOY_VERSION} --build-only
+                    '''
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
             agent {
                 docker {
                     image 'alpine/k8s:1.25.2'
                     registryUrl 'https://docker.artifactory.ihme.washington.edu'
-                    args '--entrypoint="" -v /var/run/docker.sock:/var/run/docker.sock'
+                    args '--entrypoint=""'
                 }
             }
             environment {
@@ -27,10 +38,10 @@ pipeline {
             }
             steps {
                 script {
-                    // Make the script executable and run it
+                    // Complete the deployment with kubectl
                     sh '''
-                        chmod +x build-and-deploy.sh
-                        ./build-and-deploy.sh ${DEPLOY_VERSION}
+                        kubectl apply -f k8s/
+                        kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
                     '''
                 }
             }

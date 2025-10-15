@@ -20,6 +20,16 @@ REGISTRY="docker-scicomp.artifactory.ihme.washington.edu"
 
 IMAGE_NAME="downlogger"
 TAG="${1:-latest}"
+BUILD_ONLY=false
+
+# Check for --build-only flag
+if [[ "$1" == "--build-only" ]]; then
+    BUILD_ONLY=true
+    TAG="${2:-latest}"
+elif [[ "$2" == "--build-only" ]]; then
+    BUILD_ONLY=true
+fi
+
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${TAG}"
 
 echo -e "${BLUE}🚀 Downlogger Build and Deploy Pipeline${NC}"
@@ -91,6 +101,13 @@ docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t ${FULL_IMAG
 
 echo -e "${GREEN}✅ Docker image built and pushed successfully${NC}"
 echo ""
+
+if [[ "$BUILD_ONLY" == "true" ]]; then
+    echo -e "${YELLOW}🔨 Build-only mode: Skipping Kubernetes deployment${NC}"
+    echo -e "${BLUE}📦 Image built: ${FULL_IMAGE}${NC}"
+    echo -e "${BLUE}📝 To deploy manually: kubectl apply -f k8s/${NC}"
+    exit 0
+fi
 
 # Step 4: Update Kubernetes Deployment
 echo -e "${GREEN}🚀 Step 4: Updating Kubernetes deployment...${NC}"
