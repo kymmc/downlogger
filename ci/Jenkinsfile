@@ -48,7 +48,15 @@ pipeline {
             }
             steps {
                 sh '''
+                    # Apply all k8s configs (namespace, configmap, secret, service, ingress, hpa)
                     kubectl apply -f k8s/
+                    
+                    # Update deployment with the new image tag
+                    kubectl set image deployment/downlogger \
+                        downlogger=${DOCKER_REGISTRY}/${IMAGE_NAME}:${DEPLOY_VERSION} \
+                        -n ${K8S_NAMESPACE}
+                    
+                    # Wait for rollout to complete
                     kubectl rollout status deployment/downlogger -n ${K8S_NAMESPACE} --timeout=300s
                 '''
             }
