@@ -717,39 +717,24 @@ function goToPage(page) {
 function formatTimestamp(timestamp) {
     if (!timestamp) return 'N/A';
     
-    // Debug: Log every timestamp conversion to verify function is being called
-    console.log('formatTimestamp called with:', timestamp);
+    // DEBUG: Always log what we receive to understand the difference
+    console.log('formatTimestamp DEBUG:', {
+        original: timestamp,
+        type: typeof timestamp,
+        hasZ: timestamp.includes?.('Z'),
+        hostname: window.location.hostname
+    });
     
-    let date;
+    // Database stores timestamps in Pacific Time
+    // Local MySQL returns without 'Z', K8s MySQL adds 'Z' suffix incorrectly
     
-    // Check if timestamp already includes timezone information
-    if (typeof timestamp === 'string' && (timestamp.includes('Z') || timestamp.includes('+') || timestamp.includes('-', 10))) {
-        // Timestamp has timezone info - convert from UTC to Pacific
-        date = new Date(timestamp);
-        console.log('Timestamp has timezone info, converting from UTC to Pacific');
+    if (typeof timestamp === 'string' && timestamp.includes('Z')) {
+        // K8s environment: MySQL2 incorrectly adds 'Z' to Pacific timestamps
+        // Strip the 'Z' and treat as Pacific Time (no conversion)
+        const cleanTimestamp = timestamp.replace(/Z$/, '');
+        const date = new Date(cleanTimestamp);
         
-        try {
-            const formatted = date.toLocaleString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-                timeZone: 'America/Los_Angeles'  // Pacific Time
-            });
-            
-            console.log('UTC->Pacific formatted result:', formatted);
-            return formatted;
-        } catch (error) {
-            console.warn('UTC->Pacific conversion failed:', error);
-        }
-    } else {
-        // Timestamp has no timezone info - assume it's already in Pacific time
-        date = new Date(timestamp);
-        console.log('Timestamp has no timezone info, treating as Pacific time');
-        
-        const formatted = date.toLocaleString('en-US', {
+        const result = date.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -758,8 +743,23 @@ function formatTimestamp(timestamp) {
             hour12: false
         });
         
-        console.log('Pacific formatted result:', formatted);
-        return formatted;
+        console.log('K8s path result:', result);
+        return result;
+    } else {
+        // Local environment: timestamps have no timezone info, already Pacific
+        const date = new Date(timestamp);
+        
+        const result = date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+        
+        console.log('Local path result:', result);
+        return result;
     }
 }
 
