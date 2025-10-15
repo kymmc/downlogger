@@ -5,6 +5,7 @@ set -e
 
 echo "=== SCRIPT STARTED ==="
 echo "Arguments: $@"
+echo "*** THIS IS A TEST - IF YOU SEE THIS, THE SCRIPT IS RUNNING ***"
 
 # Colors
 GREEN='\033[0;32m'
