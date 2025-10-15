@@ -16,7 +16,16 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                node('docker') {
+                    checkout scm
+                    sh '''
+                        echo "=== CHECKOUT COMPLETE ==="
+                        echo "Current commit: $(git rev-parse HEAD)"
+                        echo "Current branch: $(git branch --show-current)"
+                        echo "Latest commits:"
+                        git log --oneline -3
+                    '''
+                }
             }
         }
         stage('Build Docker Image') {
