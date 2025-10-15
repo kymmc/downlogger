@@ -95,51 +95,61 @@ This application is designed for **Kubernetes deployment** with Docker container
 ### Registry Information
 
 - **Registry**: `docker-scicomp.artifactory.ihme.washington.edu`
-- **Image**: `docker-scicomp.artifactory.ihme.washington.edu/downlogger:latest`
 - **Namespace**: `downlogger-prod`
+- **Application URL**: https://downlogger.aks.scicomp.ihme.washington.edu
 
-### Prerequisites
+### Deployment Methods
 
-- Docker installed and running
-- kubectl configured for your cluster
+#### Option 1: Jenkins Pipeline (Recommended)
+
+This is the **easiest method** for deployment:
+
+1. Push your code changes to the `main` branch
+2. Go to https://jenkins.scicomp.ihme.washington.edu/job/Downlogger/
+3. Make sure you are logged in
+4. Click **"Build Now"** in the left menu
+
+The Jenkins pipeline will automatically:
+- Build multi-platform Docker image (AMD64 + ARM64)
+- Push to Artifactory registry
+- Deploy to Kubernetes cluster
+- Perform rolling update with zero downtime
+- Verify deployment health
+
+#### Option 2: Local Machine Deployment
+
+If deploying from your local machine, you need:
+
+**Prerequisites:**
+- Docker Desktop installed and running
 - Access to IHME Artifactory registry
+- kubectl configured for the cluster
 
-### First Time Setup
+**Steps:**
 
-1. **Login to Artifactory:**
-```bash
-docker login docker-scicomp.artifactory.ihme.washington.edu
-```
+1. **Create secrets file:**
+   ```bash
+   cd k8s/
+   cp secret.yaml.example secret.yaml
+   # Edit secret.yaml with your database credentials
+   ```
 
-2. **Create secrets file:**
-```bash
-cd k8s/
-cp secret.yaml.example secret.yaml
-# Edit secret.yaml with your database credentials
-```
+2. **Login to Docker registry:**
+   ```bash
+   docker login docker-scicomp.artifactory.ihme.washington.edu
+   ```
 
-### Quick Deploy
+3. **Run the build and deploy script:**
+   ```bash
+   chmod +x build-and-deploy.sh
+   ./build-and-deploy.sh
+   ```
 
-**One-Command Deployment:**
-```bash
-# Build and deploy everything with @build-and-deploy.sh
-chmod +x build-and-deploy.sh
-./build-and-deploy.sh
-```
-
-The `@build-and-deploy.sh` script handles everything automatically:
-1. **Setup** multi-platform Docker builder (AMD64 + ARM64)
-2. **Login** to Artifactory registry
-3. **Build & Push** Docker image for both platforms
-4. **Deploy** to Kubernetes cluster
-5. **Wait** for rollout completion
-6. **Verify** deployment status
-
-**Manual Deployment (if needed):**
-```bash
-# Apply Kubernetes manifests manually
-kubectl apply -f k8s/
-```
+The script will:
+- Setup multi-platform Docker builder
+- Build and push Docker image for both AMD64 and ARM64
+- Deploy to Kubernetes cluster
+- Wait for rollout completion
 
 ### Key Features
 
@@ -150,6 +160,7 @@ kubectl apply -f k8s/
 - 📊 **Health checks** and monitoring
 - 🔄 **Rolling updates** with zero downtime
 - 🏗️ **Multi-platform builds** (AMD64 + ARM64 support)
+- 🚀 **CI/CD pipeline** via Jenkins
 
 ### Monitoring
 
@@ -200,10 +211,7 @@ Edit `k8s/secret.yaml`:
 - `DB_USER`: Database username
 - `DB_PASSWORD`: Database password
 
-### Alternative: Azure App Service
-*Legacy deployment option - Kubernetes recommended for new deployments*
-
-See `AZURE_DEPLOYMENT.md` if Azure App Service deployment is required.
+> **Note**: Azure App Service deployment is a legacy option. See `AZURE_DEPLOYMENT.md` if needed, but Kubernetes is recommended for all new deployments.
 
 ## Usage
 
@@ -222,23 +230,6 @@ See `AZURE_DEPLOYMENT.md` if Azure App Service deployment is required.
 - **Visual Feedback**: Filter indicators show active searches
 - **Role-Based Stats**: Dashboard cards break down usage by user roles
 - **Cross-View Navigation**: Seamless workflow between summary and details
-
-## Build and Deploy Commands
-
-```bash
-# Local development
-npm start                 # Start local server
-npm run dev              # Start with auto-reload
-
-# Production deployment (recommended)
-./build-and-deploy.sh    # One-command build and deploy
-
-# Manual Kubernetes operations
-kubectl apply -f k8s/    # Deploy to Kubernetes
-kubectl delete -f k8s/   # Remove from Kubernetes
-kubectl logs -f deployment/downlogger -n downlogger-prod  # View logs
-kubectl get all -n downlogger-prod  # Check status
-```
 
 ## API Endpoints
 
