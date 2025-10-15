@@ -3,6 +3,9 @@
 # Build and Deploy Pipeline for Downlogger
 set -e
 
+echo "=== SCRIPT STARTED ==="
+echo "Arguments: $@"
+
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -37,6 +40,7 @@ fi
 echo "DEBUG: BUILD_ONLY='$BUILD_ONLY', TAG='$TAG'"
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${TAG}"
 
+echo "=== FLAG PARSING COMPLETE ==="
 echo -e "${BLUE}🚀 Downlogger Build and Deploy Pipeline${NC}"
 echo -e "${BLUE}=======================================${NC}"
 echo ""
