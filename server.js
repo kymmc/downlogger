@@ -123,13 +123,13 @@ app.get('/api/user-summary', async (req, res) => {
                 MAX(date_inserted) as last_download,
                 MAX(ip_address) as latest_ip_address
             FROM user_info 
-            WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = 'Success'
+            WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
         `;
         
         let countQuery = `
             SELECT COUNT(DISTINCT email) as total 
             FROM user_info 
-            WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = 'Success'
+            WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
         `;
         
         const queryParams = [];
@@ -196,6 +196,7 @@ app.get('/api/user-summary', async (req, res) => {
         queryParams.push(limit, offset);
 
         // Execute queries
+        console.log('User Summary Query:', query, 'Params:', queryParams);
         const countResult = await executeQuery(countQuery, countParams);
         const total = countResult[0].total;
         const totalPages = Math.ceil(total / limit);
@@ -352,7 +353,7 @@ app.get('/api/logs', async (req, res) => {
     const sortOrder = req.query.sortOrder;
 
     // Base WHERE clause - most selective conditions first
-    let whereClause = 'WHERE tool_year = 2023 AND outcome = \'Success\' AND date_reset IS NULL';
+    let whereClause = 'WHERE tool_year = 2023 AND outcome = \'Success\' AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00")';
     const queryParams = [];
     const countParams = [];
 
@@ -421,7 +422,7 @@ app.get('/api/logs', async (req, res) => {
     queryParams.push(limit, offset);
 
     // Add query hints for better performance (if needed)
-    // Uncomment for debugging: console.log('Query:', query, 'Params:', queryParams);
+    console.log('Detailed Logs Query:', query, 'Params:', queryParams);
 
     // Execute queries concurrently for better performance
     try {
