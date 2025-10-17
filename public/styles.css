@@ -63,6 +63,22 @@ body {
     box-shadow: 0 6px 20px rgba(2, 38, 46, 0.3);
 }
 
+.stat-card.clickable-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stat-card.clickable-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(2, 38, 46, 0.4);
+    background: linear-gradient(135deg, #17B9CF 0%, #02262E 100%);
+}
+
+.stat-card.clickable-card:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(2, 38, 46, 0.3);
+}
+
 .stat-card h3 {
     font-size: 0.85rem;
     margin-bottom: 8px;

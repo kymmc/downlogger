@@ -231,13 +231,10 @@ function switchView(view) {
 
 // Update table headers based on current view
 function updateTableHeaders() {
-    const thead = document.querySelector('.logs-table thead tr');
+    const thead = document.querySelector('#logsTable thead tr');
     
     if (currentView === 'detailed') {
         thead.innerHTML = `
-            <th class="sortable" data-column="date_inserted">
-                Date Inserted <i class="fas fa-sort sort-icon"></i>
-            </th>
             <th class="sortable" data-column="email">
                 Email <i class="fas fa-sort sort-icon"></i>
             </th>
@@ -253,6 +250,9 @@ function updateTableHeaders() {
             <th class="sortable" data-column="role">
                 Role <i class="fas fa-sort sort-icon"></i>
             </th>
+            <th class="sortable" data-column="date_inserted">
+                Date Inserted <i class="fas fa-sort sort-icon"></i>
+            </th>
             <th>
                 Permalink
             </th>
@@ -262,14 +262,14 @@ function updateTableHeaders() {
             <th class="sortable" data-column="email">
                 Email <i class="fas fa-sort sort-icon"></i>
             </th>
-            <th class="sortable" data-column="role">
-                Role <i class="fas fa-sort sort-icon"></i>
-            </th>
-            <th class="sortable" data-column="total_downloads">
-                Total Downloads <i class="fas fa-sort sort-icon"></i>
+            <th class="sortable" data-column="latest_ip_address">
+                IP Address <i class="fas fa-sort sort-icon"></i>
             </th>
             <th class="sortable" data-column="total_rows">
                 Total Rows <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="role">
+                Role <i class="fas fa-sort sort-icon"></i>
             </th>
             <th class="sortable" data-column="first_download">
                 First Download <i class="fas fa-sort sort-icon"></i>
@@ -354,16 +354,23 @@ function displayStats(stats) {
     const statsContainer = document.getElementById('statsCards');
     
     // Total rows downloaded card
-    const totalRowsCard = createStatCard('Total Rows Downloaded', formatNumber(stats.totalRows), 'fas fa-download');
+    const totalRowsCard = createStatCard('Total Rows Downloaded', formatNumber(stats.totalRows), 'fas fa-download', clearDateFilters);
     
     // Role breakdown cards with both user count and rows
-    const roleCards = stats.byLevel.map(item => 
-        createRoleStatCard(item.role || 'UNKNOWN', item.user_count, item.total_rows, getRoleIcon(item.role))
-    );
+    const roleCards = stats.byLevel.map(item => {
+        const role = item.role || 'UNKNOWN';
+        return createRoleStatCard(
+            role, 
+            item.user_count, 
+            item.total_rows, 
+            getRoleIcon(item.role),
+            () => filterByRole(role)
+        );
+    });
     
     // Recent activity card - total rows downloaded in last 7 days
     const recentRows = stats.last7Days.reduce((sum, day) => sum + (parseInt(day.total_rows) || 0), 0);
-    const recentCard = createStatCard('Last 7 Days Rows Downloaded', formatNumber(recentRows), 'fas fa-clock');
+    const recentCard = createStatCard('Last 7 Days Rows Downloaded', formatNumber(recentRows), 'fas fa-clock', filterToLast7Days);
     
     statsContainer.innerHTML = '';
     statsContainer.appendChild(totalRowsCard);
@@ -372,9 +379,17 @@ function displayStats(stats) {
 }
 
 // Create a statistics card
-function createStatCard(title, value, iconClass) {
+function createStatCard(title, value, iconClass, clickHandler = null) {
     const card = document.createElement('div');
     card.className = 'stat-card';
+    
+    if (clickHandler) {
+        card.classList.add('clickable-card');
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', clickHandler);
+        card.title = 'Click to filter by ' + title.toLowerCase();
+    }
+    
     const formattedValue = typeof value === 'string' ? value : value.toLocaleString();
     card.innerHTML = `
         <h3><i class="${iconClass}"></i> ${title}</h3>
@@ -383,10 +398,72 @@ function createStatCard(title, value, iconClass) {
     return card;
 }
 
+// Clear date filters only and reload data
+function clearDateFilters() {
+    // Clear only the date filter inputs
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    
+    // Update current filters - remove only date filters
+    delete currentFilters.startDate;
+    delete currentFilters.endDate;
+    
+    // Reset to first page
+    currentPage = 1;
+    
+    // Reload data with updated filters
+    loadData();
+    
+    // Update browser history
+    updateBrowserHistory();
+}
+
+// Filter to last 7 days
+function filterToLast7Days() {
+    const today = new Date();
+    const sixDaysAgo = new Date(today);
+    sixDaysAgo.setDate(today.getDate() - 6); // Changed from -7 to -6 to get exactly 7 days including today
+    
+    // Format dates for input fields (YYYY-MM-DD)
+    const startDate = sixDaysAgo.toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
+    
+    // Set the date input fields
+    document.getElementById('startDate').value = startDate;
+    document.getElementById('endDate').value = endDate;
+    
+    // Update current filters
+    currentFilters.startDate = startDate;
+    currentFilters.endDate = endDate;
+    
+    // Reload data with new filters
+    loadData();
+    
+    // Update browser history
+    updateBrowserHistory();
+}
+
+// Filter by role using the existing role dropdown
+function filterByRole(role) {
+    // Set the role filter dropdown
+    document.getElementById('levelFilter').value = role;
+    
+    // Trigger the existing filter mechanism
+    applyFilters();
+}
+
 // Create a role statistics card with both user count and total rows
-function createRoleStatCard(role, userCount, totalRows, iconClass) {
+function createRoleStatCard(role, userCount, totalRows, iconClass, clickHandler = null) {
     const card = document.createElement('div');
     card.className = 'stat-card';
+    
+    if (clickHandler) {
+        card.classList.add('clickable-card');
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', clickHandler);
+        card.title = `Click to filter by ${role} role`;
+    }
+    
     const roleColors = getRoleColors(role);
     card.style.background = `linear-gradient(135deg, ${roleColors.primary} 0%, ${roleColors.secondary} 100%)`;
     card.innerHTML = `
@@ -555,15 +632,15 @@ function displayLogs(records) {
     
     tbody.innerHTML = records.map(record => `
         <tr>
-            <td>${formatTimestamp(record.date_inserted)}</td>
             <td class="log-message">${escapeHtml(record.email || 'N/A')}</td>
             <td class="log-message">${escapeHtml(record.ip_address || 'N/A')}</td>
             <td class="log-message">${escapeHtml(record.queue_name || 'N/A')}</td>
             <td class="log-message">${formatNumber(record.rows_returned)}</td>
             <td>${escapeHtml(record.role || 'N/A')}</td>
+            <td>${formatTimestamp(record.date_inserted)}</td>
             <td class="permalink-cell">
                 ${record.permalink ? 
-                    `<button class="permalink-btn" onclick="openPermalink('${escapeHtml(record.permalink)}')" title="Open Permalink">
+                    `<button class="permalink-btn" onclick="openPermalink('${escapeHtml(record.permalink)}')"; title="Open Permalink">
                         <i class="fas fa-external-link-alt"></i>
                     </button>` : 
                     '<span class="no-permalink">N/A</span>'
@@ -643,11 +720,11 @@ function displayUserSummary(users) {
                     ` : ''}
                 </div>
             </td>
-            <td>${escapeHtml(user.role || 'N/A')}</td>
-            <td class="log-message">${formatNumber(user.total_downloads)}</td>
+            <td>${escapeHtml(user.latest_ip_address || 'N/A')}</td>
             <td class="log-message">${formatNumber(user.total_rows)}</td>
-            <td>${formatTimestamp(user.first_download)}</td>
-            <td>${formatTimestamp(user.last_download)}</td>
+            <td>${escapeHtml(user.role || 'N/A')}</td>
+            <td>${formatDateOnly(user.first_download)}</td>
+            <td>${formatDateOnly(user.last_download)}</td>
         </tr>
     `).join('');
 }
@@ -726,7 +803,7 @@ function formatTimestamp(timestamp) {
         const cleanTimestamp = timestamp.replace(/Z$/, '');
         const date = new Date(cleanTimestamp);
         
-        const result = date.toLocaleString('en-US', {
+        return date.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -734,14 +811,11 @@ function formatTimestamp(timestamp) {
             minute: '2-digit',
             hour12: false
         });
-        
-        console.log('K8s path result:', result);
-        return result;
     } else {
         // Local environment: timestamps have no timezone info, already Pacific
         const date = new Date(timestamp);
         
-        const result = date.toLocaleString('en-US', {
+        return date.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -749,9 +823,35 @@ function formatTimestamp(timestamp) {
             minute: '2-digit',
             hour12: false
         });
+    }
+}
+
+function formatDateOnly(timestamp) {
+    if (!timestamp) return 'N/A';
+    
+    // Database stores timestamps in Pacific Time
+    // Local MySQL returns without 'Z', K8s MySQL adds 'Z' suffix incorrectly
+    
+    if (typeof timestamp === 'string' && timestamp.includes('Z')) {
+        // K8s environment: MySQL2 incorrectly adds 'Z' to Pacific timestamps
+        // Strip the 'Z' and treat as Pacific Time (no conversion)
+        const cleanTimestamp = timestamp.replace(/Z$/, '');
+        const date = new Date(cleanTimestamp);
         
-        console.log('Local path result:', result);
-        return result;
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    } else {
+        // Local environment: timestamps have no timezone info, already Pacific
+        const date = new Date(timestamp);
+        
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
     }
 }
 
