@@ -120,8 +120,9 @@ app.get('/api/user-summary', async (req, res) => {
                 COUNT(*) as total_downloads,
                 SUM(rows_returned) as total_rows,
                 MIN(date_inserted) as first_download,
-                MAX(date_inserted) as last_download
-            FROM user_info ui 
+                MAX(date_inserted) as last_download,
+                MAX(ip_address) as latest_ip_address
+            FROM user_info 
             WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = 'Success'
         `;
         
@@ -183,7 +184,7 @@ app.get('/api/user-summary', async (req, res) => {
         // Add ordering
         let orderBy = 'total_rows DESC'; // Default sort by total rows descending
         if (sortBy && sortOrder) {
-            const allowedColumns = ['email', 'role', 'total_downloads', 'total_rows', 'first_download', 'last_download'];
+            const allowedColumns = ['email', 'role', 'total_downloads', 'total_rows', 'latest_ip_address', 'first_download', 'last_download'];
             const allowedOrders = ['asc', 'desc'];
             
             if (allowedColumns.includes(sortBy) && allowedOrders.includes(sortOrder.toLowerCase())) {
@@ -217,9 +218,129 @@ app.get('/api/user-summary', async (req, res) => {
     }
 });
 
-// Get all user info records with pagination and filtering
+// Get cap resets data
+app.get('/api/cap-resets', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
+        const role = req.query.level;
+        const search = req.query.search;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+        const sortBy = req.query.sortBy;
+        const sortOrder = req.query.sortOrder;
+
+        let query = `
+            SELECT email, user_info.role, date_reset
+            FROM user_info 
+            WHERE tool_year = 2023 AND (user_info.date_reset) > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+        `;
+        
+        let countQuery = `
+            SELECT COUNT(DISTINCT date_reset) as total 
+            FROM user_info 
+            WHERE tool_year = 2023 AND (user_info.date_reset) > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+        `;
+
+        const queryParams = [];
+        const countParams = [];
+
+        // Add role filter if specified
+        if (role && role !== 'all') {
+            query += ` AND LOWER(role) = LOWER(?)`;
+            countQuery += ` AND LOWER(role) = LOWER(?)`;
+            queryParams.push(role);
+            countParams.push(role);
+        }
+
+        // Add search filter if specified (for email)
+        if (search) {
+            const searchLower = search.toLowerCase();
+            if (searchLower.startsWith('*.') && searchLower.includes('.')) {
+                // Domain search: *.domain.com
+                const domain = searchLower.substring(2);
+                query += ` AND LOWER(email) LIKE ?`;
+                countQuery += ` AND LOWER(email) LIKE ?`;
+                queryParams.push(`%${domain}`);
+                countParams.push(`%${domain}`);
+            } else if (searchLower.startsWith('@')) {
+                // Domain search: @domain.com
+                const domain = searchLower.substring(1);
+                query += ` AND LOWER(email) LIKE ?`;
+                countQuery += ` AND LOWER(email) LIKE ?`;
+                queryParams.push(`%@${domain}`);
+                countParams.push(`%@${domain}`);
+            } else {
+                // Regular email search
+                query += ` AND LOWER(email) LIKE ?`;
+                countQuery += ` AND LOWER(email) LIKE ?`;
+                queryParams.push(`%${searchLower}%`);
+                countParams.push(`%${searchLower}%`);
+            }
+        }
+
+        // Add date filters if specified
+        if (startDate) {
+            query += ` AND date_reset >= ?`;
+            countQuery += ` AND date_reset >= ?`;
+            queryParams.push(startDate + ' 00:00:00');
+            countParams.push(startDate + ' 00:00:00');
+        }
+
+        if (endDate) {
+            query += ` AND date_reset <= ?`;
+            countQuery += ` AND date_reset <= ?`;
+            queryParams.push(endDate + ' 23:59:59');
+            countParams.push(endDate + ' 23:59:59');
+        }
+
+        // Add GROUP BY and ORDER BY
+        query += ` GROUP BY date_reset`;
+        
+        // Add sorting
+        if (sortBy && sortOrder) {
+            const validColumns = ['email', 'role', 'date_reset'];
+            const validOrders = ['asc', 'desc'];
+            
+            if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
+                query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+            } else {
+                query += ` ORDER BY user_info.date_inserted DESC`;
+            }
+        } else {
+            query += ` ORDER BY user_info.date_inserted DESC`;
+        }
+
+        // Add pagination
+        query += ` LIMIT ? OFFSET ?`;
+        queryParams.push(limit, offset);
+
+        // Execute queries
+        const countResult = await executeQuery(countQuery, countParams);
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
+
+        const capResets = await executeQuery(query, queryParams);
+
+        res.json({
+            capResets,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages
+            }
+        });
+
+    } catch (error) {
+        console.error('Cap resets endpoint error:', error);
+        res.status(500).json({ error: 'Failed to fetch cap resets data' });
+    }
+});
+
+// Get detailed logs with pagination
 app.get('/api/logs', async (req, res) => {
-    console.log('Logs endpoint called with params:', req.query);
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Cap limit at 100
     const offset = (page - 1) * limit;
