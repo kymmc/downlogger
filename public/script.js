@@ -6,7 +6,7 @@ let currentSort = {
     column: 'total_rows',
     direction: 'desc'
 };
-let currentView = 'summary'; // 'detailed' or 'summary'
+let currentView = 'summary'; // 'detailed', 'summary', or 'cap-resets'
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -23,6 +23,7 @@ function initializeEventListeners() {
     // View tabs
     document.getElementById('detailedViewTab').addEventListener('click', () => switchView('detailed'));
     document.getElementById('summaryViewTab').addEventListener('click', () => switchView('summary'));
+    document.getElementById('capResetsViewTab').addEventListener('click', () => switchView('cap-resets'));
     
     // Filter controls
     document.getElementById('levelFilter').addEventListener('change', applyFilters);
@@ -207,7 +208,10 @@ function switchView(view) {
     document.querySelectorAll('.view-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    document.getElementById(view === 'detailed' ? 'detailedViewTab' : 'summaryViewTab').classList.add('active');
+    
+    const activeTabId = view === 'detailed' ? 'detailedViewTab' : 
+                       view === 'cap-resets' ? 'capResetsViewTab' : 'summaryViewTab';
+    document.getElementById(activeTabId).classList.add('active');
     
     // Update table title based on view
     const tableTitle = document.getElementById('tableTitle');
@@ -215,6 +219,10 @@ function switchView(view) {
         tableTitle.innerHTML = '<i class="fas fa-list"></i> Detailed Logs';
         // Reset sort state when switching to detailed view
         currentSort = { column: null, direction: null };
+    } else if (view === 'cap-resets') {
+        tableTitle.innerHTML = '<i class="fas fa-undo-alt"></i> Cap Resets';
+        // Reset sort state when switching to cap resets view
+        currentSort = { column: 'date_reset', direction: 'desc' };
     } else {
         tableTitle.innerHTML = '<i class="fas fa-user-friends"></i> User Summary';
         // Set default sort for summary view: Total Rows descending
@@ -257,6 +265,18 @@ function updateTableHeaders() {
                 Permalink
             </th>
         `;
+    } else if (currentView === 'cap-resets') {
+        thead.innerHTML = `
+            <th class="sortable" data-column="email">
+                Email <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="role">
+                Role <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="date_reset">
+                Date Reset <i class="fas fa-sort sort-icon"></i>
+            </th>
+        `;
     } else {
         thead.innerHTML = `
             <th class="sortable" data-column="email">
@@ -289,6 +309,8 @@ function updateTableHeaders() {
 function loadData() {
     if (currentView === 'detailed') {
         loadLogs();
+    } else if (currentView === 'cap-resets') {
+        loadCapResets();
     } else {
         loadUserSummary();
     }
@@ -729,6 +751,82 @@ function displayUserSummary(users) {
     `).join('');
 }
 
+// Load cap resets data from API
+async function loadCapResets() {
+    showLoading(true);
+    
+    try {
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: 50,
+            ...currentFilters
+        });
+        
+        // Add sort parameters
+        if (currentSort.column && currentSort.direction) {
+            params.set('sortBy', currentSort.column);
+            params.set('sortOrder', currentSort.direction);
+        }
+        
+        // Remove empty parameters
+        for (const [key, value] of params.entries()) {
+            if (!value || value === 'all') {
+                params.delete(key);
+            }
+        }
+        
+        const response = await fetch(`/api/cap-resets?${params}`);
+        if (!response.ok) throw new Error('Failed to load cap resets');
+        
+        const data = await response.json();
+        displayCapResets(data.capResets);
+        displayPagination(data.pagination);
+        
+    } catch (error) {
+        console.error('Error loading cap resets:', error);
+        showError('Failed to load cap resets. Please check your database connection.');
+        displayCapResets([]);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Display cap resets in table
+function displayCapResets(capResets) {
+    const tbody = document.getElementById('logsTableBody');
+    
+    if (capResets.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 40px; color: #666;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
+                    No cap resets found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = capResets.map(reset => `
+        <tr>
+            <td class="log-message">
+                <div class="email-actions">
+                    <button class="email-link" onclick="drillDownToUser('${escapeHtml(reset.email)}')" title="View detailed logs for this user">
+                        ${escapeHtml(reset.email || 'N/A')}
+                    </button>
+                    ${reset.email && reset.email !== 'N/A' ? `
+                        <button class="domain-link" onclick="searchByDomain('${escapeHtml(reset.email)}')" title="View all users from this domain">
+                            <i class="fas fa-globe"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+            <td>${escapeHtml(reset.role || 'N/A')}</td>
+            <td>${formatTimestamp(reset.date_reset)}</td>
+        </tr>
+    `).join('');
+}
+
 // Display pagination controls
 function displayPagination(pagination) {
     const paginationContainer = document.getElementById('pagination');
@@ -738,7 +836,7 @@ function displayPagination(pagination) {
     totalPages = pagination.totalPages;
     
     // Update pagination info
-    const start = Math.max(1, (pagination.page - 1) * pagination.limit + 1);
+    const start = pagination.total === 0 ? 0 : Math.max(1, (pagination.page - 1) * pagination.limit + 1);
     const end = Math.min(pagination.total, pagination.page * pagination.limit);
     paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} records`;
     
