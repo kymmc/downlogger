@@ -2,7 +2,20 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
+
+// Load sanction domains data
+let sanctionDomainsData = {};
+try {
+    const sanctionDomainsPath = path.join(__dirname, 'public', 'data', 'sanction-domains.json');
+    const sanctionDomainsRaw = fs.readFileSync(sanctionDomainsPath, 'utf8');
+    sanctionDomainsData = JSON.parse(sanctionDomainsRaw);
+    console.log('Loaded sanction domains data:', Object.keys(sanctionDomainsData.domains).length, 'domains');
+} catch (error) {
+    console.error('Error loading sanction domains data:', error);
+    sanctionDomainsData = { domains: {} };
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -337,6 +350,138 @@ app.get('/api/cap-resets', async (req, res) => {
         console.error('Cap resets endpoint error:', error);
         res.status(500).json({ error: 'Failed to fetch cap resets data' });
     }
+});
+
+// Get sanction domains data
+app.get('/api/sanction-domains', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
+        const role = req.query.level;
+        const search = req.query.search;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+        const sortBy = req.query.sortBy;
+        const sortOrder = req.query.sortOrder;
+
+        // Use loaded sanction domains data
+        const sanctionDomains = sanctionDomainsData.domains || {};
+        const domains = Object.keys(sanctionDomains);
+        const domainConditions = domains.map(() => 'LOWER(email) LIKE ?').join(' OR ');
+
+        let query = `
+            SELECT 
+                email,
+                role,
+                COUNT(*) as total_downloads,
+                SUM(rows_returned) as total_rows,
+                MIN(date_inserted) as first_download,
+                MAX(date_inserted) as last_download,
+                MAX(ip_address) as latest_ip_address
+            FROM user_info 
+            WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
+            AND (${domainConditions})
+        `;
+        
+        let countQuery = `
+            SELECT COUNT(DISTINCT email) as total 
+            FROM user_info 
+            WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
+            AND (${domainConditions})
+        `;
+
+        const queryParams = [...domains.map(domain => `%${domain}`)];
+        const countParams = [...domains.map(domain => `%${domain}`)];
+
+        // Add additional filters
+        if (role && role !== 'all') {
+            query += ' AND role = ?';
+            countQuery += ' AND role = ?';
+            queryParams.push(role);
+            countParams.push(role);
+        }
+
+        if (search) {
+            query += ' AND email LIKE ?';
+            countQuery += ' AND email LIKE ?';
+            const searchPattern = `%${search}%`;
+            queryParams.push(searchPattern);
+            countParams.push(searchPattern);
+        }
+
+        if (startDate) {
+            query += ' AND date_inserted >= ?';
+            countQuery += ' AND date_inserted >= ?';
+            const startDateTime = startDate + ' 00:00:00';
+            queryParams.push(startDateTime);
+            countParams.push(startDateTime);
+        }
+
+        if (endDate) {
+            query += ' AND date_inserted <= ?';
+            countQuery += ' AND date_inserted <= ?';
+            const endDateTime = endDate + ' 23:59:59';
+            queryParams.push(endDateTime);
+            countParams.push(endDateTime);
+        }
+
+        // Add GROUP BY and sorting
+        query += ' GROUP BY email, role';
+        
+        if (sortBy && sortOrder) {
+            const validColumns = ['email', 'role', 'total_downloads', 'total_rows', 'latest_ip_address', 'first_download', 'last_download'];
+            const validOrders = ['asc', 'desc'];
+            
+            if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
+                query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+            } else {
+                query += ' ORDER BY total_rows DESC';
+            }
+        } else {
+            query += ' ORDER BY total_rows DESC';
+        }
+
+        query += ' LIMIT ? OFFSET ?';
+        queryParams.push(limit, offset);
+
+        // Execute queries
+        const countResult = await executeQuery(countQuery, countParams);
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
+
+        const users = await executeQuery(query, queryParams);
+
+        // Add institution information to each user
+        const usersWithInstitution = users.map(user => {
+            const domain = domains.find(domain => user.email && user.email.toLowerCase().includes(domain.toLowerCase()));
+            const institutionData = domain ? sanctionDomains[domain] : null;
+            return {
+                ...user,
+                institution: institutionData ? institutionData.institution : 'Unknown',
+                country: institutionData ? institutionData.country : 'Unknown'
+            };
+        });
+
+        res.json({
+            users: usersWithInstitution,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages
+            }
+        });
+
+    } catch (error) {
+        console.error('Sanction domains endpoint error:', error);
+        res.status(500).json({ error: 'Failed to fetch sanction domains data' });
+    }
+});
+
+// Get sanction domains configuration
+app.get('/api/sanction-domains-config', (req, res) => {
+    res.json(sanctionDomainsData);
 });
 
 // Get detailed logs with pagination
