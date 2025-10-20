@@ -1,1 +1,64 @@
-
+{
+  "domains": {
+    "@fmmu.edu.cn": {
+      "institution": "Air Force Medical University",
+      "country": "China"
+    },
+    "@aut.ac.ir": {
+      "institution": "Amirkabir University of Technology",
+      "country": "Iran"
+    },
+    "@bmstu.ru": {
+      "institution": "Bauman Moscow State Technical University",
+      "country": "Russia"
+    },
+    "@dlut.edu.cn": {
+      "institution": "Dalian University of Technology",
+      "country": "China"
+    },
+    "@mipt.ru": {
+      "institution": "Moscow Institute of Physics and Technology (MIPT)",
+      "country": "Russia"
+    },
+    "@phystech.edu": {
+      "institution": "Moscow Institute of Physics and Technology (MIPT)",
+      "country": "Russia"
+    },
+    "@msu.ru": {
+      "institution": "Moscow State University",
+      "country": "Russia"
+    },
+    "@njust.edu.cn": {
+      "institution": "Nanjing University of Science and Technology (NJUST)",
+      "country": "China"
+    },
+    "@smmu.edu.cn": {
+      "institution": "Naval Medical University",
+      "country": "China"
+    },
+    "@sharif.ir": {
+      "institution": "Sharif University of Technology",
+      "country": "Iran"
+    },
+    "@scu.edu.cn": {
+      "institution": "Sichuan University",
+      "country": "China"
+    },
+    "@sysu.edu.cn": {
+      "institution": "Sun Yat-Sen University",
+      "country": "China"
+    },
+    "@uestc.edu.cn": {
+      "institution": "University of Electronic Science and Technology of China",
+      "country": "China"
+    },
+    "@ustc.edu.cn": {
+      "institution": "University of Science and Technology of China",
+      "country": "China"
+    },
+    "@xjtu.edu.cn": {
+      "institution": "Xi'an Jiaotong University",
+      "country": "China"
+    }
+  }
+}
