@@ -187,7 +187,12 @@ function handleSort(event) {
     // Update browser history
     updateBrowserHistory();
     
-    loadData();
+    // For institution column in sanction domains view, use client-side sorting
+    if (currentView === 'sanction-domains' && column === 'institution') {
+        loadSanctionDomainsWithClientSort();
+    } else {
+        loadData();
+    }
 }
 
 // Update sort UI indicators
@@ -353,7 +358,12 @@ function loadData() {
     } else if (currentView === 'cap-resets') {
         loadCapResets();
     } else if (currentView === 'sanction-domains') {
-        loadSanctionDomains();
+        // Use client-side sorting if sorting by institution
+        if (currentSort.column === 'institution') {
+            loadSanctionDomainsWithClientSort();
+        } else {
+            loadSanctionDomains();
+        }
     } else {
         loadUserSummary();
     }
@@ -901,6 +911,73 @@ async function loadSanctionDomains() {
         const data = await response.json();
         displaySanctionDomains(data.users);
         displayPagination(data.pagination);
+        
+    } catch (error) {
+        console.error('Error loading sanction domains:', error);
+        showError('Failed to load sanction domains. Please check your database connection.');
+        displaySanctionDomains([]);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Load sanction domains data with client-side sorting for institution column
+async function loadSanctionDomainsWithClientSort() {
+    showLoading(true);
+    
+    try {
+        // Fetch all data without pagination or sorting for client-side processing
+        const params = new URLSearchParams({
+            page: 1,
+            limit: 10000, // Large limit to get all data
+            ...currentFilters
+        });
+        
+        // Remove empty parameters
+        for (const [key, value] of params.entries()) {
+            if (!value || value === 'all') {
+                params.delete(key);
+            }
+        }
+        
+        const response = await fetch(`/api/sanction-domains?${params}`);
+        if (!response.ok) throw new Error('Failed to load sanction domains');
+        
+        const data = await response.json();
+        let users = data.users;
+        
+        // Sort by institution if that's the current sort column
+        if (currentSort.column === 'institution' && currentSort.direction) {
+            users.sort((a, b) => {
+                const aValue = (a.institution || 'N/A').toLowerCase();
+                const bValue = (b.institution || 'N/A').toLowerCase();
+                
+                if (currentSort.direction === 'asc') {
+                    return aValue.localeCompare(bValue);
+                } else {
+                    return bValue.localeCompare(aValue);
+                }
+            });
+        }
+        
+        // Apply pagination to sorted data
+        const limit = 50;
+        const total = users.length;
+        const totalPages = Math.ceil(total / limit);
+        const start = (currentPage - 1) * limit;
+        const end = start + limit;
+        const paginatedUsers = users.slice(start, end);
+        
+        // Create pagination object
+        const pagination = {
+            page: currentPage,
+            limit: limit,
+            total: total,
+            totalPages: totalPages
+        };
+        
+        displaySanctionDomains(paginatedUsers);
+        displayPagination(pagination);
         
     } catch (error) {
         console.error('Error loading sanction domains:', error);
