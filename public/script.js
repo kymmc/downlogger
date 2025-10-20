@@ -270,6 +270,9 @@ function updateTableHeaders() {
             <th class="sortable" data-column="email">
                 Email <i class="fas fa-sort sort-icon"></i>
             </th>
+            <th class="sortable" data-column="total_rows">
+                Total Rows <i class="fas fa-sort sort-icon"></i>
+            </th>
             <th class="sortable" data-column="role">
                 Role <i class="fas fa-sort sort-icon"></i>
             </th>
@@ -798,7 +801,7 @@ function displayCapResets(capResets) {
     if (capResets.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="3" style="text-align: center; padding: 40px; color: #666;">
+                <td colspan="4" style="text-align: center; padding: 40px; color: #666;">
                     <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
                     No cap resets found
                 </td>
@@ -821,6 +824,7 @@ function displayCapResets(capResets) {
                     ` : ''}
                 </div>
             </td>
+            <td class="log-message">${formatNumber(reset.total_rows)}</td>
             <td>${escapeHtml(reset.role || 'N/A')}</td>
             <td>${formatTimestamp(reset.date_reset)}</td>
         </tr>
