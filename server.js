@@ -196,7 +196,6 @@ app.get('/api/user-summary', async (req, res) => {
         queryParams.push(limit, offset);
 
         // Execute queries
-        console.log('User Summary Query:', query, 'Params:', queryParams);
         const countResult = await executeQuery(countQuery, countParams);
         const total = countResult[0].total;
         const totalPages = Math.ceil(total / limit);
@@ -233,7 +232,7 @@ app.get('/api/cap-resets', async (req, res) => {
         const sortOrder = req.query.sortOrder;
 
         let query = `
-            SELECT email, user_info.role, date_reset
+            SELECT email, user_info.role, SUM(rows_returned) as total_rows, date_reset
             FROM user_info 
             WHERE tool_year = 2023 AND (user_info.date_reset) > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
         `;
@@ -301,7 +300,7 @@ app.get('/api/cap-resets', async (req, res) => {
         
         // Add sorting
         if (sortBy && sortOrder) {
-            const validColumns = ['email', 'role', 'date_reset'];
+            const validColumns = ['email', 'role', 'total_rows', 'date_reset'];
             const validOrders = ['asc', 'desc'];
             
             if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
@@ -422,7 +421,7 @@ app.get('/api/logs', async (req, res) => {
     queryParams.push(limit, offset);
 
     // Add query hints for better performance (if needed)
-    console.log('Detailed Logs Query:', query, 'Params:', queryParams);
+    // console.log('Detailed Logs Query:', query, 'Params:', queryParams);
 
     // Execute queries concurrently for better performance
     try {
