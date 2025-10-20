@@ -6,7 +6,7 @@ let currentSort = {
     column: 'total_rows',
     direction: 'desc'
 };
-let currentView = 'summary'; // 'detailed', 'summary', or 'cap-resets'
+let currentView = 'summary'; // 'detailed', 'summary', 'cap-resets', or 'sanction-domains'
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,6 +24,7 @@ function initializeEventListeners() {
     document.getElementById('detailedViewTab').addEventListener('click', () => switchView('detailed'));
     document.getElementById('summaryViewTab').addEventListener('click', () => switchView('summary'));
     document.getElementById('capResetsViewTab').addEventListener('click', () => switchView('cap-resets'));
+    document.getElementById('sanctionDomainsViewTab').addEventListener('click', () => switchView('sanction-domains'));
     
     // Filter controls
     document.getElementById('levelFilter').addEventListener('change', applyFilters);
@@ -115,12 +116,20 @@ function restoreUIState() {
     document.querySelectorAll('.view-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    document.getElementById(currentView === 'detailed' ? 'detailedViewTab' : 'summaryViewTab').classList.add('active');
+    
+    const activeTabId = currentView === 'detailed' ? 'detailedViewTab' : 
+                       currentView === 'cap-resets' ? 'capResetsViewTab' : 
+                       currentView === 'sanction-domains' ? 'sanctionDomainsViewTab' : 'summaryViewTab';
+    document.getElementById(activeTabId).classList.add('active');
     
     // Update table title
     const tableTitle = document.getElementById('tableTitle');
     if (currentView === 'detailed') {
         tableTitle.innerHTML = '<i class="fas fa-list"></i> Detailed Logs';
+    } else if (currentView === 'cap-resets') {
+        tableTitle.innerHTML = '<i class="fas fa-undo-alt"></i> Cap Resets';
+    } else if (currentView === 'sanction-domains') {
+        tableTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Sanction Domains';
     } else {
         tableTitle.innerHTML = '<i class="fas fa-user-friends"></i> User Summary';
     }
@@ -210,7 +219,8 @@ function switchView(view) {
     });
     
     const activeTabId = view === 'detailed' ? 'detailedViewTab' : 
-                       view === 'cap-resets' ? 'capResetsViewTab' : 'summaryViewTab';
+                       view === 'cap-resets' ? 'capResetsViewTab' : 
+                       view === 'sanction-domains' ? 'sanctionDomainsViewTab' : 'summaryViewTab';
     document.getElementById(activeTabId).classList.add('active');
     
     // Update table title based on view
@@ -223,6 +233,10 @@ function switchView(view) {
         tableTitle.innerHTML = '<i class="fas fa-undo-alt"></i> Cap Resets';
         // Reset sort state when switching to cap resets view
         currentSort = { column: 'date_reset', direction: 'desc' };
+    } else if (view === 'sanction-domains') {
+        tableTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Sanction Domains';
+        // Set default sort for sanction domains view: Total Rows descending
+        currentSort = { column: 'total_rows', direction: 'desc' };
     } else {
         tableTitle.innerHTML = '<i class="fas fa-user-friends"></i> User Summary';
         // Set default sort for summary view: Total Rows descending
@@ -280,6 +294,30 @@ function updateTableHeaders() {
                 Date Reset <i class="fas fa-sort sort-icon"></i>
             </th>
         `;
+    } else if (currentView === 'sanction-domains') {
+        thead.innerHTML = `
+            <th class="sortable" data-column="email">
+                Email <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="latest_ip_address">
+                IP Address <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="total_rows">
+                Total Rows <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="role">
+                Role <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="institution">
+                Institution <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="first_download">
+                First Download <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="last_download">
+                Most Recent <i class="fas fa-sort sort-icon"></i>
+            </th>
+        `;
     } else {
         thead.innerHTML = `
             <th class="sortable" data-column="email">
@@ -314,6 +352,8 @@ function loadData() {
         loadLogs();
     } else if (currentView === 'cap-resets') {
         loadCapResets();
+    } else if (currentView === 'sanction-domains') {
+        loadSanctionDomains();
     } else {
         loadUserSummary();
     }
@@ -827,6 +867,86 @@ function displayCapResets(capResets) {
             <td class="log-message">${formatNumber(reset.total_rows)}</td>
             <td>${escapeHtml(reset.role || 'N/A')}</td>
             <td>${formatTimestamp(reset.date_reset)}</td>
+        </tr>
+    `).join('');
+}
+
+// Load sanction domains data from API
+async function loadSanctionDomains() {
+    showLoading(true);
+    
+    try {
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: 50,
+            ...currentFilters
+        });
+        
+        // Add sort parameters
+        if (currentSort.column && currentSort.direction) {
+            params.set('sortBy', currentSort.column);
+            params.set('sortOrder', currentSort.direction);
+        }
+        
+        // Remove empty parameters
+        for (const [key, value] of params.entries()) {
+            if (!value || value === 'all') {
+                params.delete(key);
+            }
+        }
+        
+        const response = await fetch(`/api/sanction-domains?${params}`);
+        if (!response.ok) throw new Error('Failed to load sanction domains');
+        
+        const data = await response.json();
+        displaySanctionDomains(data.users);
+        displayPagination(data.pagination);
+        
+    } catch (error) {
+        console.error('Error loading sanction domains:', error);
+        showError('Failed to load sanction domains. Please check your database connection.');
+        displaySanctionDomains([]);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Display sanction domains in table
+function displaySanctionDomains(users) {
+    const tbody = document.getElementById('logsTableBody');
+    
+    if (users.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
+                    No sanction domain users found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = users.map(user => `
+        <tr>
+            <td class="log-message">
+                <div class="email-actions">
+                    <button class="email-link" onclick="drillDownToUser('${escapeHtml(user.email)}')" title="View detailed logs for this user">
+                        ${escapeHtml(user.email || 'N/A')}
+                    </button>
+                    ${user.email && user.email !== 'N/A' ? `
+                        <button class="domain-link" onclick="searchByDomain('${escapeHtml(user.email)}')" title="View all users from this domain">
+                            <i class="fas fa-globe"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+            <td>${escapeHtml(user.latest_ip_address || 'N/A')}</td>
+            <td class="log-message">${formatNumber(user.total_rows)}</td>
+            <td>${escapeHtml(user.role || 'N/A')}</td>
+            <td class="log-message" style="max-width: 250px; word-wrap: break-word;">${escapeHtml(user.institution || 'N/A')}</td>
+            <td>${formatDateOnly(user.first_download)}</td>
+            <td>${formatDateOnly(user.last_download)}</td>
         </tr>
     `).join('');
 }
