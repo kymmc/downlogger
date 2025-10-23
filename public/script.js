@@ -240,8 +240,8 @@ function switchView(view) {
         currentSort = { column: 'date_reset', direction: 'desc' };
     } else if (view === 'sanction-domains') {
         tableTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Sanction Domains';
-        // Set default sort for sanction domains view: Total Rows descending
-        currentSort = { column: 'total_rows', direction: 'desc' };
+        // Set default sort for sanction domains view: Most Recent descending
+        currentSort = { column: 'last_download', direction: 'desc' };
     } else {
         tableTitle.innerHTML = '<i class="fas fa-user-friends"></i> User Summary';
         // Set default sort for summary view: Total Rows descending
