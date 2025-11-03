@@ -48,6 +48,14 @@
       "institution": "Sun Yat-Sen University",
       "country": "China"
     },
+      "@mail.sysu.edu.cn": {
+      "institution": "Sun Yat-Sen University",
+      "country": "China"
+    },
+      "@mail2.sysu.edu.cn": {
+      "institution": "Sun Yat-Sen University",
+      "country": "China"
+    },
     "@uestc.edu.cn": {
       "institution": "University of Electronic Science and Technology of China",
       "country": "China"
