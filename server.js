@@ -245,26 +245,39 @@ app.get('/api/cap-resets', async (req, res) => {
         const sortOrder = req.query.sortOrder;
 
         let query = `
-            SELECT email, user_info.role, SUM(rows_returned) as total_rows, date_reset
-            FROM user_info 
-            WHERE tool_year = 2023 AND (user_info.date_reset) > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+            SELECT 
+                cr.email, 
+                cr.role, 
+                COALESCE(SUM(ui.rows_returned), 0) as total_rows, 
+                cr.date_reset
+            FROM (
+                SELECT DISTINCT email, role, date_reset
+                FROM user_info 
+                WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+            ) cr
+            LEFT JOIN user_info ui ON cr.email = ui.email 
+                AND ui.tool_year = 2023 
+                AND ui.outcome = "Success"
+                AND ui.role = "NonCollabUser"
         `;
         
         let countQuery = `
             SELECT COUNT(DISTINCT date_reset) as total 
             FROM user_info 
-            WHERE tool_year = 2023 AND (user_info.date_reset) > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+            WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
         `;
 
         const queryParams = [];
         const countParams = [];
 
+        // Store base WHERE conditions for both subquery and count query
+        let whereConditions = [];
+        let whereParams = [];
+
         // Add role filter if specified
         if (role && role !== 'all') {
-            query += ` AND LOWER(role) = LOWER(?)`;
-            countQuery += ` AND LOWER(role) = LOWER(?)`;
-            queryParams.push(role);
-            countParams.push(role);
+            whereConditions.push(`LOWER(role) = LOWER(?)`);
+            whereParams.push(role);
         }
 
         // Add search filter if specified (for email)
@@ -273,43 +286,48 @@ app.get('/api/cap-resets', async (req, res) => {
             if (searchLower.startsWith('*.') && searchLower.includes('.')) {
                 // Domain search: *.domain.com
                 const domain = searchLower.substring(2);
-                query += ` AND LOWER(email) LIKE ?`;
-                countQuery += ` AND LOWER(email) LIKE ?`;
-                queryParams.push(`%${domain}`);
-                countParams.push(`%${domain}`);
+                whereConditions.push(`LOWER(email) LIKE ?`);
+                whereParams.push(`%${domain}`);
             } else if (searchLower.startsWith('@')) {
                 // Domain search: @domain.com
                 const domain = searchLower.substring(1);
-                query += ` AND LOWER(email) LIKE ?`;
-                countQuery += ` AND LOWER(email) LIKE ?`;
-                queryParams.push(`%@${domain}`);
-                countParams.push(`%@${domain}`);
+                whereConditions.push(`LOWER(email) LIKE ?`);
+                whereParams.push(`%@${domain}`);
             } else {
                 // Regular email search
-                query += ` AND LOWER(email) LIKE ?`;
-                countQuery += ` AND LOWER(email) LIKE ?`;
-                queryParams.push(`%${searchLower}%`);
-                countParams.push(`%${searchLower}%`);
+                whereConditions.push(`LOWER(email) LIKE ?`);
+                whereParams.push(`%${searchLower}%`);
             }
         }
 
         // Add date filters if specified
         if (startDate) {
-            query += ` AND date_reset >= ?`;
-            countQuery += ` AND date_reset >= ?`;
-            queryParams.push(startDate + ' 00:00:00');
-            countParams.push(startDate + ' 00:00:00');
+            whereConditions.push(`date_reset >= ?`);
+            whereParams.push(startDate + ' 00:00:00');
         }
 
         if (endDate) {
-            query += ` AND date_reset <= ?`;
-            countQuery += ` AND date_reset <= ?`;
-            queryParams.push(endDate + ' 23:59:59');
-            countParams.push(endDate + ' 23:59:59');
+            whereConditions.push(`date_reset <= ?`);
+            whereParams.push(endDate + ' 23:59:59');
+        }
+
+        // Apply filters to both main query and count query
+        if (whereConditions.length > 0) {
+            const whereClause = ` AND ` + whereConditions.join(' AND ');
+            query = query.replace(
+                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"',
+                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"' + whereClause
+            );
+            countQuery = countQuery.replace(
+                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"',
+                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"' + whereClause
+            );
+            queryParams.push(...whereParams);
+            countParams.push(...whereParams);
         }
 
         // Add GROUP BY and ORDER BY
-        query += ` GROUP BY date_reset`;
+        query += ` GROUP BY cr.email, cr.role, cr.date_reset`;
         
         // Add sorting
         if (sortBy && sortOrder) {
@@ -317,12 +335,18 @@ app.get('/api/cap-resets', async (req, res) => {
             const validOrders = ['asc', 'desc'];
             
             if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
-                query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+                // Map column names to correct aliases
+                let orderColumn = sortBy;
+                if (sortBy === 'email') orderColumn = 'cr.email';
+                else if (sortBy === 'role') orderColumn = 'cr.role';
+                else if (sortBy === 'date_reset') orderColumn = 'cr.date_reset';
+                
+                query += ` ORDER BY ${orderColumn} ${sortOrder.toUpperCase()}`;
             } else {
-                query += ` ORDER BY user_info.date_inserted DESC`;
+                query += ` ORDER BY cr.date_reset DESC`;
             }
         } else {
-            query += ` ORDER BY user_info.date_inserted DESC`;
+            query += ` ORDER BY cr.date_reset DESC`;
         }
 
         // Add pagination
@@ -436,10 +460,10 @@ app.get('/api/sanction-domains', async (req, res) => {
             if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
                 query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
             } else {
-                query += ' ORDER BY total_rows DESC';
+                query += ' ORDER BY last_download DESC';
             }
         } else {
-            query += ' ORDER BY total_rows DESC';
+            query += ' ORDER BY last_download DESC';
         }
 
         query += ' LIMIT ? OFFSET ?';
