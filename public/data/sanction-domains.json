@@ -8,9 +8,25 @@
       "institution": "Amirkabir University of Technology",
       "country": "Iran"
     },
+    "@tmmu.edu.cn ": {
+      "institution": "Army Medical University",
+      "country": "China"
+    },
     "@bmstu.ru": {
       "institution": "Bauman Moscow State Technical University",
       "country": "Russia"
+    },
+    "@buaa.edu.cn": {
+      "institution": "Beihang University",
+      "country": "China"
+    },
+   "@cust.edu.cn": {
+      "institution": "Changchun University of Science & Technology",
+      "country": "China"
+    },
+   "@cqu.edu.cn": {
+      "institution": "Chongqing University",
+      "country": "China"
     },
     "@dlut.edu.cn": {
       "institution": "Dalian University of Technology",
@@ -36,6 +52,14 @@
       "institution": "Naval Medical University",
       "country": "China"
     },
+    "@mail.nwpu.edu.cn": {
+      "institution": "Northwestern Polytechnical University",
+      "country": "China"
+    },
+    "@sharif.edu": {
+      "institution": "Sharif University of Technology",
+      "country": "Iran"
+    },
     "@sharif.ir": {
       "institution": "Sharif University of Technology",
       "country": "Iran"
@@ -54,6 +78,10 @@
     },
       "@mail2.sysu.edu.cn": {
       "institution": "Sun Yat-Sen University",
+      "country": "China"
+    },
+      "@tju.edu.cn": {
+      "institution": "Tianjin University",
       "country": "China"
     },
     "@uestc.edu.cn": {
