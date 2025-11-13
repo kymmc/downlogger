@@ -340,6 +340,7 @@ app.get('/api/cap-resets', async (req, res) => {
                 if (sortBy === 'email') orderColumn = 'cr.email';
                 else if (sortBy === 'role') orderColumn = 'cr.role';
                 else if (sortBy === 'date_reset') orderColumn = 'cr.date_reset';
+                else if (sortBy === 'total_rows') orderColumn = 'total_rows';
                 
                 query += ` ORDER BY ${orderColumn} ${sortOrder.toUpperCase()}`;
             } else {
