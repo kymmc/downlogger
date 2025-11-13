@@ -158,14 +158,29 @@ function handleSort(event) {
     
     // Update sort state
     if (currentSort.column === column) {
-        // Same column clicked, toggle direction
-        if (currentSort.direction === 'asc') {
-            currentSort.direction = 'desc';
-        } else if (currentSort.direction === 'desc') {
-            currentSort.direction = null;
-            currentSort.column = null;
+        // Same column clicked, cycle through states
+        if (column === 'rows_returned' || column === 'total_downloads' || column === 'total_rows') {
+            // Numeric columns: DESC → ASC → null → DESC
+            if (currentSort.direction === 'desc') {
+                currentSort.direction = 'asc';
+            } else if (currentSort.direction === 'asc') {
+                currentSort.direction = null;
+                currentSort.column = null;
+            } else {
+                // null state, restart cycle
+                currentSort.direction = 'desc';
+            }
         } else {
-            currentSort.direction = 'asc';
+            // Text/Date columns: ASC → DESC → null → ASC
+            if (currentSort.direction === 'asc') {
+                currentSort.direction = 'desc';
+            } else if (currentSort.direction === 'desc') {
+                currentSort.direction = null;
+                currentSort.column = null;
+            } else {
+                // null state, restart cycle
+                currentSort.direction = 'asc';
+            }
         }
     } else {
         // Different column clicked
