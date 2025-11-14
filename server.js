@@ -137,12 +137,14 @@ app.get('/api/user-summary', async (req, res) => {
                 MAX(ip_address) as latest_ip_address
             FROM user_info 
             WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
+            AND email NOT LIKE 'collabtest+%'
         `;
         
         let countQuery = `
             SELECT COUNT(DISTINCT email) as total 
             FROM user_info 
             WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
+            AND email NOT LIKE 'collabtest+%'
         `;
         
         const queryParams = [];
@@ -253,18 +255,19 @@ app.get('/api/cap-resets', async (req, res) => {
             FROM (
                 SELECT DISTINCT email, role, date_reset
                 FROM user_info 
-                WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+                WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser" AND email NOT LIKE 'collabtest+%'
             ) cr
             LEFT JOIN user_info ui ON cr.email = ui.email 
                 AND ui.tool_year = 2023 
                 AND ui.outcome = "Success"
                 AND ui.role = "NonCollabUser"
+                AND ui.email NOT LIKE 'collabtest+%'
         `;
         
         let countQuery = `
             SELECT COUNT(DISTINCT date_reset) as total 
             FROM user_info 
-            WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"
+            WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser" AND email NOT LIKE 'collabtest+%'
         `;
 
         const queryParams = [];
@@ -406,6 +409,7 @@ app.get('/api/sanction-domains', async (req, res) => {
                 MAX(ip_address) as latest_ip_address
             FROM user_info 
             WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
+            AND email NOT LIKE 'collabtest+%'
             AND (${domainConditions})
         `;
         
@@ -413,6 +417,7 @@ app.get('/api/sanction-domains', async (req, res) => {
             SELECT COUNT(DISTINCT email) as total 
             FROM user_info 
             WHERE tool_year = 2023 AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND outcome = 'Success'
+            AND email NOT LIKE 'collabtest+%'
             AND (${domainConditions})
         `;
 
@@ -522,7 +527,7 @@ app.get('/api/logs', async (req, res) => {
     const sortOrder = req.query.sortOrder;
 
     // Base WHERE clause - most selective conditions first
-    let whereClause = 'WHERE tool_year = 2023 AND outcome = \'Success\' AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00")';
+    let whereClause = 'WHERE tool_year = 2023 AND outcome = \'Success\' AND (date_reset IS NULL OR date_reset > "2025-10-15 00:00:00") AND email NOT LIKE \'collabtest+%\'';
     const queryParams = [];
     const countParams = [];
 
@@ -622,9 +627,9 @@ app.get('/api/logs', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
     console.log('Stats endpoint called');
     const queries = [
-        'SELECT COUNT(*) as total, SUM(rows_returned) as total_rows FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' LIMIT 1',
-        'SELECT role, COUNT(DISTINCT email) as user_count, SUM(rows_returned) as total_rows FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND role IS NOT NULL GROUP BY role LIMIT 10',
-        'SELECT DATE(date_inserted) as date, COUNT(*) as count, SUM(rows_returned) as total_rows FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND date_inserted >= CURDATE() - INTERVAL 7 DAY GROUP BY DATE(date_inserted) ORDER BY date LIMIT 7'
+        'SELECT COUNT(*) as total, SUM(rows_returned) as total_rows FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND email NOT LIKE \'collabtest+%\' LIMIT 1',
+        'SELECT role, COUNT(DISTINCT email) as user_count, SUM(rows_returned) as total_rows FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND role IS NOT NULL AND email NOT LIKE \'collabtest+%\' GROUP BY role LIMIT 10',
+        'SELECT DATE(date_inserted) as date, COUNT(*) as count, SUM(rows_returned) as total_rows FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND email NOT LIKE \'collabtest+%\' AND date_inserted >= CURDATE() - INTERVAL 7 DAY GROUP BY DATE(date_inserted) ORDER BY date LIMIT 7'
     ];
 
     try {
@@ -649,7 +654,7 @@ app.get('/api/stats', async (req, res) => {
 // Get unique roles
 app.get('/api/levels', async (req, res) => {
     try {
-        const results = await executeQuery('SELECT DISTINCT role FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND role IS NOT NULL ORDER BY role');
+        const results = await executeQuery('SELECT DISTINCT role FROM user_info WHERE tool_year = 2023 AND date_reset IS NULL AND outcome = \'Success\' AND role IS NOT NULL AND email NOT LIKE \'collabtest+%\' ORDER BY role');
         res.json(results.map(row => row.role));
     } catch (err) {
         console.error('Error getting roles:', err);
