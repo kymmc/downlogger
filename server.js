@@ -248,26 +248,19 @@ app.get('/api/cap-resets', async (req, res) => {
 
         let query = `
             SELECT 
-                cr.email, 
-                cr.role, 
-                COALESCE(SUM(ui.rows_returned), 0) as total_rows, 
-                cr.date_reset
-            FROM (
-                SELECT DISTINCT email, role, date_reset
-                FROM user_info 
-                WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser" AND email NOT LIKE 'collabtest+%'
-            ) cr
-            LEFT JOIN user_info ui ON cr.email = ui.email 
-                AND ui.tool_year = 2023 
-                AND ui.outcome = "Success"
-                AND ui.role = "NonCollabUser"
-                AND ui.email NOT LIKE 'collabtest+%'
+                email, 
+                COUNT(DISTINCT date_reset) AS reset_count, 
+                SUM(user_info.rows_returned) AS total_rows,
+                user_info.role, 
+                DATE(MAX(date_reset)) AS latest_reset 
+            FROM user_info 
+            WHERE tool_year = '2023' AND tool_id = 1 AND date_reset > "2025-10-13" AND email NOT LIKE 'collabtest+%'
         `;
         
         let countQuery = `
-            SELECT COUNT(DISTINCT date_reset) as total 
+            SELECT COUNT(DISTINCT email) as total 
             FROM user_info 
-            WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser" AND email NOT LIKE 'collabtest+%'
+            WHERE tool_year = '2023' AND tool_id = 1 AND date_reset > "2025-10-13" AND email NOT LIKE 'collabtest+%'
         `;
 
         const queryParams = [];
@@ -318,39 +311,32 @@ app.get('/api/cap-resets', async (req, res) => {
         if (whereConditions.length > 0) {
             const whereClause = ` AND ` + whereConditions.join(' AND ');
             query = query.replace(
-                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"',
-                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"' + whereClause
+                'WHERE tool_year = \'2023\' AND tool_id = 1 AND date_reset > "2025-10-13" AND email NOT LIKE \'collabtest+%\'',
+                'WHERE tool_year = \'2023\' AND tool_id = 1 AND date_reset > "2025-10-13" AND email NOT LIKE \'collabtest+%\'' + whereClause
             );
             countQuery = countQuery.replace(
-                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"',
-                'WHERE tool_year = 2023 AND date_reset > "2025-10-15" AND outcome = "Success" AND ROLE = "NonCollabUser"' + whereClause
+                'WHERE tool_year = \'2023\' AND tool_id = 1 AND date_reset > "2025-10-13" AND email NOT LIKE \'collabtest+%\'',
+                'WHERE tool_year = \'2023\' AND tool_id = 1 AND date_reset > "2025-10-13" AND email NOT LIKE \'collabtest+%\'' + whereClause
             );
             queryParams.push(...whereParams);
             countParams.push(...whereParams);
         }
 
         // Add GROUP BY and ORDER BY
-        query += ` GROUP BY cr.email, cr.role, cr.date_reset`;
+        query += ` GROUP BY email`;
         
         // Add sorting
         if (sortBy && sortOrder) {
-            const validColumns = ['email', 'role', 'total_rows', 'date_reset'];
+            const validColumns = ['email', 'role', 'total_rows', 'reset_count', 'latest_reset'];
             const validOrders = ['asc', 'desc'];
             
             if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
-                // Map column names to correct aliases
-                let orderColumn = sortBy;
-                if (sortBy === 'email') orderColumn = 'cr.email';
-                else if (sortBy === 'role') orderColumn = 'cr.role';
-                else if (sortBy === 'date_reset') orderColumn = 'cr.date_reset';
-                else if (sortBy === 'total_rows') orderColumn = 'total_rows';
-                
-                query += ` ORDER BY ${orderColumn} ${sortOrder.toUpperCase()}`;
+                query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
             } else {
-                query += ` ORDER BY cr.date_reset DESC`;
+                query += ` ORDER BY latest_reset DESC`;
             }
         } else {
-            query += ` ORDER BY cr.date_reset DESC`;
+            query += ` ORDER BY latest_reset DESC`;
         }
 
         // Add pagination
