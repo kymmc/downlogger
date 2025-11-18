@@ -159,7 +159,7 @@ function handleSort(event) {
     // Update sort state
     if (currentSort.column === column) {
         // Same column clicked, cycle through states
-        if (column === 'rows_returned' || column === 'total_downloads' || column === 'total_rows') {
+        if (column === 'rows_returned' || column === 'total_downloads' || column === 'total_rows' || column === 'reset_count') {
             // Numeric columns: DESC → ASC → null → DESC
             if (currentSort.direction === 'desc') {
                 currentSort.direction = 'asc';
@@ -185,8 +185,8 @@ function handleSort(event) {
     } else {
         // Different column clicked
         currentSort.column = column;
-        // For rows_returned and total_downloads/total_rows, default to desc (highest first)
-        if (column === 'rows_returned' || column === 'total_downloads' || column === 'total_rows') {
+        // For rows_returned and total_downloads/total_rows/reset_count, default to desc (highest first)
+        if (column === 'rows_returned' || column === 'total_downloads' || column === 'total_rows' || column === 'reset_count') {
             currentSort.direction = 'desc';
         } else {
             currentSort.direction = 'asc';
@@ -252,7 +252,7 @@ function switchView(view) {
     } else if (view === 'cap-resets') {
         tableTitle.innerHTML = '<i class="fas fa-undo-alt"></i> Cap Resets';
         // Reset sort state when switching to cap resets view
-        currentSort = { column: 'date_reset', direction: 'desc' };
+        currentSort = { column: 'latest_reset', direction: 'desc' };
     } else if (view === 'sanction-domains') {
         tableTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Sanction Domains';
         // Set default sort for sanction domains view: Most Recent descending
@@ -304,14 +304,17 @@ function updateTableHeaders() {
             <th class="sortable" data-column="email">
                 Email <i class="fas fa-sort sort-icon"></i>
             </th>
+            <th class="sortable" data-column="reset_count">
+                Reset Count <i class="fas fa-sort sort-icon"></i>
+            </th>
             <th class="sortable" data-column="total_rows">
                 Total Rows <i class="fas fa-sort sort-icon"></i>
             </th>
             <th class="sortable" data-column="role">
                 Role <i class="fas fa-sort sort-icon"></i>
             </th>
-            <th class="sortable" data-column="date_reset">
-                Date Reset <i class="fas fa-sort sort-icon"></i>
+            <th class="sortable" data-column="latest_reset">
+                Latest Reset <i class="fas fa-sort sort-icon"></i>
             </th>
         `;
     } else if (currentView === 'sanction-domains') {
@@ -866,7 +869,7 @@ function displayCapResets(capResets) {
     if (capResets.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align: center; padding: 40px; color: #666;">
+                <td colspan="5" style="text-align: center; padding: 40px; color: #666;">
                     <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
                     No cap resets found
                 </td>
@@ -889,9 +892,10 @@ function displayCapResets(capResets) {
                     ` : ''}
                 </div>
             </td>
+            <td class="log-message">${formatNumber(reset.reset_count)}</td>
             <td class="log-message">${formatNumber(reset.total_rows)}</td>
             <td>${escapeHtml(reset.role || 'N/A')}</td>
-            <td>${formatTimestamp(reset.date_reset)}</td>
+            <td>${formatDateOnly(reset.latest_reset)}</td>
         </tr>
     `).join('');
 }
