@@ -500,6 +500,122 @@ app.get('/api/sanction-domains-config', (req, res) => {
     res.json(sanctionDomainsData);
 });
 
+// Get JIRA cap reset requests data
+app.get('/api/cap-resets-jira', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
+        const search = req.query.search;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+        const sortBy = req.query.sortBy;
+        const sortOrder = req.query.sortOrder;
+
+        let query = `
+            SELECT 
+                requestor_email,
+                COUNT(CASE WHEN status = 'Approved' THEN 1 END) as approved_count,
+                COUNT(CASE WHEN status = 'Denied' THEN 1 END) as denied_count,
+                COUNT(CASE WHEN status = 'To Do' THEN 1 END) as todo_count,
+                COUNT(*) as total_count,
+                MAX(created) as latest_request,
+                MIN(created) as first_request,
+                GROUP_CONCAT(
+                    CASE WHEN status = 'Denied' AND labels IS NOT NULL AND labels != '' 
+                    THEN CONCAT(DATE_FORMAT(created, '%Y-%m-%d'), '|', labels) 
+                    END SEPARATOR ';;;'
+                ) as denied_details
+            FROM jira_issues
+            WHERE 1=1
+        `;
+        
+        let countQuery = `
+            SELECT COUNT(DISTINCT requestor_email) as total 
+            FROM jira_issues
+            WHERE 1=1
+        `;
+
+        const queryParams = [];
+        const countParams = [];
+
+        // Add search filter for email
+        if (search) {
+            if (search.startsWith('*.') || search.startsWith('@')) {
+                const domain = search.startsWith('*.') ? search.substring(2) : search.substring(1);
+                const domainPattern = `%@${domain}`;
+                query += ' AND LOWER(requestor_email) LIKE LOWER(?)';
+                countQuery += ' AND LOWER(requestor_email) LIKE LOWER(?)';
+                queryParams.push(domainPattern);
+                countParams.push(domainPattern);
+            } else {
+                const searchPattern = `%${search}%`;
+                query += ' AND requestor_email LIKE ?';
+                countQuery += ' AND requestor_email LIKE ?';
+                queryParams.push(searchPattern);
+                countParams.push(searchPattern);
+            }
+        }
+
+        // Add date filters
+        if (startDate) {
+            const startDateTime = startDate + ' 00:00:00';
+            query += ' AND created >= ?';
+            countQuery += ' AND created >= ?';
+            queryParams.push(startDateTime);
+            countParams.push(startDateTime);
+        }
+
+        if (endDate) {
+            const endDateTime = endDate + ' 23:59:59';
+            query += ' AND created <= ?';
+            countQuery += ' AND created <= ?';
+            queryParams.push(endDateTime);
+            countParams.push(endDateTime);
+        }
+
+        // Add GROUP BY
+        query += ' GROUP BY requestor_email';
+
+        // Add sorting
+        let orderBy = 'total_count DESC'; // Default sort by total requests descending
+        if (sortBy && sortOrder) {
+            const validColumns = ['requestor_email', 'approved_count', 'denied_count', 'todo_count', 'total_count', 'latest_request', 'first_request'];
+            const validOrders = ['asc', 'desc'];
+            
+            if (validColumns.includes(sortBy) && validOrders.includes(sortOrder.toLowerCase())) {
+                orderBy = `${sortBy} ${sortOrder.toUpperCase()}`;
+            }
+        }
+        
+        query += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+        queryParams.push(limit, offset);
+
+        // Execute queries
+        const [countResult, jiraRequests] = await Promise.all([
+            executeQuery(countQuery, countParams),
+            executeQuery(query, queryParams)
+        ]);
+
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
+
+        res.json({
+            jiraRequests,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages
+            }
+        });
+
+    } catch (error) {
+        console.error('JIRA cap resets endpoint error:', error);
+        res.status(500).json({ error: 'Failed to fetch JIRA cap resets data' });
+    }
+});
+
 // Get detailed logs with pagination
 app.get('/api/logs', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
