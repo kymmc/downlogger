@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     initializeSortListeners();
     initializeBrowserHistory();
+    
+    // Set initial view in dropdown
+    document.getElementById('viewSelector').value = currentView;
+    
     loadLogLevels();
     loadStats();
     loadData();
@@ -20,11 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Event listeners
 function initializeEventListeners() {
-    // View tabs
-    document.getElementById('detailedViewTab').addEventListener('click', () => switchView('detailed'));
-    document.getElementById('summaryViewTab').addEventListener('click', () => switchView('summary'));
-    document.getElementById('capResetsViewTab').addEventListener('click', () => switchView('cap-resets'));
-    document.getElementById('sanctionDomainsViewTab').addEventListener('click', () => switchView('sanction-domains'));
+    // View selector dropdown
+    document.getElementById('viewSelector').addEventListener('change', (e) => switchView(e.target.value));
     
     // Filter controls
     document.getElementById('levelFilter').addEventListener('change', applyFilters);
@@ -112,15 +113,8 @@ function buildCurrentURL() {
 
 // Restore UI state from history
 function restoreUIState() {
-    // Update view tabs
-    document.querySelectorAll('.view-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    const activeTabId = currentView === 'detailed' ? 'detailedViewTab' : 
-                       currentView === 'cap-resets' ? 'capResetsViewTab' : 
-                       currentView === 'sanction-domains' ? 'sanctionDomainsViewTab' : 'summaryViewTab';
-    document.getElementById(activeTabId).classList.add('active');
+    // Update view selector dropdown
+    document.getElementById('viewSelector').value = currentView;
     
     // Update table title
     const tableTitle = document.getElementById('tableTitle');
@@ -233,15 +227,8 @@ function switchView(view) {
     currentView = view;
     currentPage = 1;
     
-    // Update tab UI
-    document.querySelectorAll('.view-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    const activeTabId = view === 'detailed' ? 'detailedViewTab' : 
-                       view === 'cap-resets' ? 'capResetsViewTab' : 
-                       view === 'sanction-domains' ? 'sanctionDomainsViewTab' : 'summaryViewTab';
-    document.getElementById(activeTabId).classList.add('active');
+    // Update dropdown selector
+    document.getElementById('viewSelector').value = view;
     
     // Update table title based on view
     const tableTitle = document.getElementById('tableTitle');
@@ -250,9 +237,13 @@ function switchView(view) {
         // Reset sort state when switching to detailed view
         currentSort = { column: null, direction: null };
     } else if (view === 'cap-resets') {
-        tableTitle.innerHTML = '<i class="fas fa-undo-alt"></i> Cap Resets';
+        tableTitle.innerHTML = '<i class="fas fa-undo-alt"></i> Cap Resets - Resets Implemented';
         // Reset sort state when switching to cap resets view
         currentSort = { column: 'latest_reset', direction: 'desc' };
+    } else if (view === 'cap-resets-jira') {
+        tableTitle.innerHTML = '<i class="fas fa-ticket-alt"></i> Cap Resets - JIRA Requests';
+        // Reset sort state when switching to JIRA view
+        currentSort = { column: 'created', direction: 'desc' };
     } else if (view === 'sanction-domains') {
         tableTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Sanction Domains';
         // Set default sort for sanction domains view: Most Recent descending
@@ -317,6 +308,27 @@ function updateTableHeaders() {
                 Latest Reset <i class="fas fa-sort sort-icon"></i>
             </th>
         `;
+    } else if (currentView === 'cap-resets-jira') {
+        thead.innerHTML = `
+            <th class="sortable" data-column="requestor_email">
+                Email <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="approved_count">
+                Approved <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="denied_count">
+                Denied <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="todo_count">
+                To Do <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="total_count">
+                Total Requests <i class="fas fa-sort sort-icon"></i>
+            </th>
+            <th class="sortable" data-column="latest_request">
+                Latest Request <i class="fas fa-sort sort-icon"></i>
+            </th>
+        `;
     } else if (currentView === 'sanction-domains') {
         thead.innerHTML = `
             <th class="sortable" data-column="email">
@@ -375,6 +387,8 @@ function loadData() {
         loadLogs();
     } else if (currentView === 'cap-resets') {
         loadCapResets();
+    } else if (currentView === 'cap-resets-jira') {
+        loadCapResetsJira();
     } else if (currentView === 'sanction-domains') {
         // Use client-side sorting if sorting by institution
         if (currentSort.column === 'institution') {
@@ -899,6 +913,152 @@ function displayCapResets(capResets) {
         </tr>
     `).join('');
 }
+
+// Load cap resets JIRA data from API
+async function loadCapResetsJira() {
+    showLoading(true);
+    
+    try {
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: 50,
+            ...currentFilters
+        });
+        
+        // Add sort parameters
+        if (currentSort.column && currentSort.direction) {
+            params.set('sortBy', currentSort.column);
+            params.set('sortOrder', currentSort.direction);
+        }
+        
+        // Remove empty parameters
+        for (const [key, value] of params.entries()) {
+            if (!value || value === 'all') {
+                params.delete(key);
+            }
+        }
+        
+        const response = await fetch(`/api/cap-resets-jira?${params}`);
+        if (!response.ok) throw new Error('Failed to load JIRA cap resets');
+        
+        const data = await response.json();
+        displayCapResetsJira(data.jiraRequests);
+        displayPagination(data.pagination);
+        
+    } catch (error) {
+        console.error('Error loading JIRA cap resets:', error);
+        showError('Failed to load JIRA cap resets.');
+        displayCapResetsJira([]);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Display JIRA cap resets in table
+function displayCapResetsJira(requests) {
+    const tbody = document.getElementById('logsTableBody');
+    
+    if (requests.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #666;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
+                    No JIRA cap reset requests found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = requests.map(request => {
+        const deniedCount = request.denied_count || 0;
+        const hasDenialReasons = request.denied_details && request.denied_details.trim() !== '';
+        const deniedCell = deniedCount > 0 && hasDenialReasons
+            ? `<button class="denied-link" onclick="showDeniedDetails('${escapeHtml(request.requestor_email)}', '${escapeHtml(request.denied_details || '')}')
+" title="Click to view denial reasons">${formatNumber(deniedCount)}</button>`
+            : formatNumber(deniedCount);
+        
+        return `
+        <tr>
+            <td class="log-message">
+                <div class="email-actions">
+                    <button class="email-link" onclick="drillDownToUser('${escapeHtml(request.requestor_email)}')
+" title="View detailed logs for this user">
+                        ${escapeHtml(request.requestor_email || 'N/A')}
+                    </button>
+                    ${request.requestor_email && request.requestor_email !== 'N/A' ? `
+                        <button class="domain-link" onclick="searchByDomain('${escapeHtml(request.requestor_email)}')
+" title="View all users from this domain">
+                            <i class="fas fa-globe"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+            <td class="log-message">${formatNumber(request.approved_count)}</td>
+            <td class="log-message">${deniedCell}</td>
+            <td class="log-message">${formatNumber(request.todo_count)}</td>
+            <td class="log-message"><strong>${formatNumber(request.total_count)}</strong></td>
+            <td>${formatDateOnly(request.latest_request)}</td>
+        </tr>
+        `;
+    }).join('');
+}
+
+// Show modal with denied request details
+function showDeniedDetails(email, deniedDetailsStr) {
+    const modal = document.getElementById('deniedRequestsModal');
+    const modalBody = document.getElementById('deniedModalBody');
+    
+    if (!deniedDetailsStr) {
+        modalBody.innerHTML = '<p style="padding: 20px;">No denial reasons recorded.</p>';
+    } else {
+        // Parse denied details: "date1|reason1;;;date2|reason2"
+        const details = deniedDetailsStr.split(';;;').filter(d => d).map(detail => {
+            const [date, reason] = detail.split('|');
+            return { date, reason };
+        });
+        
+        modalBody.innerHTML = `
+            <div style="padding: 20px;">
+                <p style="margin-bottom: 15px; font-weight: 600;">
+                    Denied requests for: <span style="color: #17B9CF;">${escapeHtml(email)}</span>
+                </p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa; border-bottom: 2px solid #D6D6D6;">
+                            <th style="padding: 10px; text-align: left;">Date</th>
+                            <th style="padding: 10px; text-align: left;">Denial Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${details.map(d => `
+                            <tr style="border-bottom: 1px solid #D6D6D6;">
+                                <td style="padding: 10px;">${escapeHtml(d.date)}</td>
+                                <td style="padding: 10px;">${escapeHtml(d.reason)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    modal.style.display = 'flex';
+}
+
+// Close denied requests modal
+function closeDeniedModal() {
+    const modal = document.getElementById('deniedRequestsModal');
+    modal.style.display = 'none';
+}
+
+// Close modal when clicking outside of it
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('deniedRequestsModal');
+    if (event.target === modal) {
+        closeDeniedModal();
+    }
+});
 
 // Load sanction domains data from API
 async function loadSanctionDomains() {

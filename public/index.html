@@ -19,19 +19,23 @@
             </div>
         </header>
 
-        <div class="view-tabs">
-            <button id="summaryViewTab" class="view-tab active" data-view="summary">
-                <i class="fas fa-user-friends"></i> User Summary
-            </button>
-            <button id="detailedViewTab" class="view-tab" data-view="detailed">
-                <i class="fas fa-list"></i> Detailed Logs
-            </button>
-            <button id="capResetsViewTab" class="view-tab" data-view="cap-resets">
-                <i class="fas fa-undo-alt"></i> Cap Resets
-            </button>
-            <button id="sanctionDomainsViewTab" class="view-tab" data-view="sanction-domains">
-                <i class="fas fa-exclamation-triangle"></i> Sanction Domains
-            </button>
+        <div class="view-selector-container">
+            <label for="viewSelector">
+                <i class="fas fa-eye"></i> View:
+            </label>
+            <select id="viewSelector" class="view-dropdown">
+                <optgroup label="━━━ 📊 DOWNLOADS ━━━">
+                    <option value="summary">   User Summary</option>
+                    <option value="detailed">   Detailed Logs</option>
+                </optgroup>
+                <optgroup label="━━━ 🔄 CAP RESETS ━━━">
+                    <option value="cap-resets">   Resets Implemented</option>
+                    <option value="cap-resets-jira">   JIRA Requests</option>
+                </optgroup>
+                <optgroup label="━━━ ⚠️ COMPLIANCE ━━━">
+                    <option value="sanction-domains">   Sanction Domains</option>
+                </optgroup>
+            </select>
         </div>
 
         <div class="controls">
@@ -135,6 +139,19 @@
             <i class="fas fa-exclamation-triangle"></i>
             <span id="errorText"></span>
             <button onclick="hideError()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Modal for denied requests details -->
+        <div id="deniedRequestsModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-times-circle"></i> Denied Requests</h3>
+                    <button class="modal-close" onclick="closeDeniedModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="deniedModalBody">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
         </div>
     </div>
 

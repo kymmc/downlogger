@@ -504,47 +504,71 @@ body {
     font-size: 0.9rem;
 }
 
-/* View tabs styles */
-.view-tabs {
-    display: flex;
+/* View selector dropdown styles */
+.view-selector-container {
     background: #ffffff;
-    border-radius: 8px 8px 0 0;
+    border-radius: 8px;
     box-shadow: 0 2px 12px rgba(2, 38, 46, 0.06);
-    margin-bottom: 0;
-    overflow: hidden;
+    margin-bottom: 30px;
+    padding: 20px 30px;
     border-left: 4px solid #02262E;
-}
-
-.view-tab {
-    flex: 1;
-    padding: 15px 25px;
-    background: #f8f9fa;
-    border: none;
-    border-bottom: 3px solid transparent;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #767878;
-    transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    gap: 15px;
 }
 
-.view-tab:hover {
-    background: #ffffff;
+.view-selector-container label {
+    font-weight: 600;
     color: #02262E;
+    font-size: 1rem;
+    white-space: nowrap;
 }
 
-.view-tab.active {
-    background: #ffffff;
+.view-selector-container label i {
+    margin-right: 8px;
+    color: #17B9CF;
+}
+
+.view-dropdown {
+    flex: 1;
+    max-width: 400px;
+    padding: 12px 16px;
+    border: 2px solid #e5e5e5;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
     color: #02262E;
-    border-bottom-color: #17B9CF;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.view-tab i {
-    font-size: 0.9rem;
+.view-dropdown:hover {
+    border-color: #17B9CF;
+    background: white;
+}
+
+.view-dropdown:focus {
+    outline: none;
+    border-color: #17B9CF;
+    box-shadow: 0 0 0 3px rgba(23, 185, 207, 0.1);
+    background: white;
+}
+
+.view-dropdown optgroup {
+    font-weight: 700;
+    color: #02262E;
+    font-style: normal;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    background: #f0f9ff;
+    padding: 4px 0;
+}
+
+.view-dropdown option {
+    padding: 8px 8px 8px 20px;
+    font-weight: 500;
+    color: #303232;
 }
 
 /* Email actions container and clickable email links */
@@ -804,5 +828,134 @@ body {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* Denied link button */
+.denied-link {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    padding: 4px 8px;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: #ff6b6b;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.denied-link:hover {
+    background-color: rgba(255, 107, 107, 0.1);
+    text-decoration-style: solid;
+}
+
+.denied-link:focus {
+    outline: 2px solid #ff6b6b;
+    outline-offset: 2px;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(2, 38, 46, 0.6);
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(2, 38, 46, 0.3);
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #02262E 0%, #17B9CF 100%);
+    color: white;
+    padding: 20px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #17B9CF;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    overflow-y: auto;
+    max-height: calc(80vh - 80px);
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .modal-body {
+        max-height: calc(90vh - 80px);
     }
 }
