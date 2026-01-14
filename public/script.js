@@ -461,7 +461,7 @@ function displayStats(stats) {
     const statsContainer = document.getElementById('statsCards');
     
     // Total rows downloaded card
-    const totalRowsCard = createStatCard('Total Rows Downloaded', formatNumber(stats.totalRows), 'fas fa-download', clearDateFilters);
+    const totalRowsCard = createStatCard('Total Rows Downloaded', formatNumberAbbreviated(stats.totalRows), 'fas fa-download', clearDateFilters);
     
     // Role breakdown cards with both user count and rows
     const roleCards = stats.byLevel.map(item => {
@@ -477,7 +477,7 @@ function displayStats(stats) {
     
     // Recent activity card - total rows downloaded in last 7 days
     const recentRows = stats.last7Days.reduce((sum, day) => sum + (parseInt(day.total_rows) || 0), 0);
-    const recentCard = createStatCard('Last 7 Days Rows Downloaded', formatNumber(recentRows), 'fas fa-clock', filterToLast7Days);
+    const recentCard = createStatCard('Last 7 Days Rows Downloaded', formatNumberAbbreviated(recentRows), 'fas fa-clock', filterToLast7Days);
     
     statsContainer.innerHTML = '';
     statsContainer.appendChild(totalRowsCard);
@@ -577,7 +577,7 @@ function createRoleStatCard(role, userCount, totalRows, iconClass, clickHandler 
         <h3><i class="${iconClass}"></i> ${role}</h3>
         <div class="stat-value">${userCount.toLocaleString()}</div>
         <div class="stat-subtitle">users</div>
-        <div class="stat-secondary">${formatNumber(totalRows)} rows</div>
+        <div class="stat-secondary">${formatNumberAbbreviated(totalRows)} rows</div>
     `;
     return card;
 }
@@ -1344,6 +1344,28 @@ function formatNumber(num) {
         return 'N/A';
     }
     return Number(num).toLocaleString();
+}
+
+function formatNumberAbbreviated(num) {
+    if (num === null || num === undefined || num === '') {
+        return 'N/A';
+    }
+    
+    const number = Number(num);
+    
+    if (number >= 1000000000) {
+        // Billions: 2.76B
+        return (number / 1000000000).toFixed(2).replace(/\.00$/, '') + 'B';
+    } else if (number >= 1000000) {
+        // Millions: 404.2M
+        return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    } else if (number >= 1000) {
+        // Thousands: 30.9K
+        return (number / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    } else {
+        // Under 1000: show full number
+        return number.toLocaleString();
+    }
 }
 
 function getOutcomeClass(outcome) {
