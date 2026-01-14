@@ -591,10 +591,10 @@ app.get('/api/cap-resets-jira', async (req, res) => {
         query += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
         queryParams.push(limit, offset);
 
-        // Execute queries
+        // Execute queries without caching (data updated externally by sync script)
         const [countResult, jiraRequests] = await Promise.all([
-            executeQuery(countQuery, countParams),
-            executeQuery(query, queryParams)
+            executeQuery(countQuery, countParams, false),
+            executeQuery(query, queryParams, false)
         ]);
 
         const total = countResult[0].total;
